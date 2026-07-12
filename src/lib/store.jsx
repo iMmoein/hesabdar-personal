@@ -91,6 +91,7 @@ export function StoreProvider({ children }) {
     localStorage.setItem(CURRENCY_KEY, currency)
   }, [currency])
 
+  // Accounts
   const addAccount = (account) => {
     const id = `acc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newAcc = { id, createdAt: todayISO(), ...account }
@@ -99,22 +100,37 @@ export function StoreProvider({ children }) {
   }
   const deleteAccount = (id) => setData((d) => ({ ...d, accounts: d.accounts.filter((a) => a.id !== id) }))
 
+  // Revenues
   const addRevenue = (rev) => {
     const id = `rev_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newRev = { id, createdAt: todayISO(), ...rev }
     setData((d) => ({ ...d, revenues: [...d.revenues, newRev] }))
     return newRev
   }
+  const updateRevenue = (id, updates) => {
+    setData((d) => ({
+      ...d,
+      revenues: d.revenues.map((r) => (r.id === id ? { ...r, ...updates } : r))
+    }))
+  }
   const deleteRevenue = (id) => setData((d) => ({ ...d, revenues: d.revenues.filter((r) => r.id !== id) }))
 
+  // Expenses
   const addExpense = (exp) => {
     const id = `exp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newExp = { id, createdAt: todayISO(), ...exp }
     setData((d) => ({ ...d, expenses: [...d.expenses, newExp] }))
     return newExp
   }
+  const updateExpense = (id, updates) => {
+    setData((d) => ({
+      ...d,
+      expenses: d.expenses.map((e) => (e.id === id ? { ...e, ...updates } : e))
+    }))
+  }
   const deleteExpense = (id) => setData((d) => ({ ...d, expenses: d.expenses.filter((e) => e.id !== id) }))
 
+  // Categories
   const addCategory = (cat) => {
     const id = `cat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newCat = { id, type: 'expense', ...cat }
@@ -123,6 +139,7 @@ export function StoreProvider({ children }) {
   }
   const deleteCategory = (id) => setData((d) => ({ ...d, categories: d.categories.filter((c) => c.id !== id) }))
 
+  // Bill names
   const addBillName = (name) => {
     const id = `bill_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newBill = { id, name }
@@ -131,14 +148,30 @@ export function StoreProvider({ children }) {
   }
   const deleteBillName = (id) => setData((d) => ({ ...d, billNames: d.billNames.filter((b) => b.id !== id) }))
 
+  // Customers
   const addCustomer = (cust) => {
     const id = `cus_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newCust = { id, createdAt: todayISO(), ...cust }
     setData((d) => ({ ...d, customers: [...d.customers, newCust] }))
     return newCust
   }
+  const updateCustomer = (id, updates) => {
+    setData((d) => ({
+      ...d,
+      customers: d.customers.map((c) => (c.id === id ? { ...c, ...updates } : c))
+    }))
+  }
   const deleteCustomer = (id) => setData((d) => ({ ...d, customers: d.customers.filter((c) => c.id !== id) }))
 
+  // Check if customer name already exists
+  const isCustomerNameDuplicate = (name, excludeId = null) => {
+    const trimmed = name.trim()
+    return data.customers.some(
+      (c) => c.name.trim() === trimmed && c.id !== excludeId
+    )
+  }
+
+  // Export/Import/Reset
   const exportData = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -167,11 +200,11 @@ export function StoreProvider({ children }) {
     theme, setTheme, toggleTheme: () => setTheme((t) => (t === 'dark' ? 'light' : 'dark')),
     currency, setCurrency, toggleCurrency: () => setCurrency((c) => (c === 'rial' ? 'toman' : 'rial')),
     addAccount, deleteAccount,
-    addRevenue, deleteRevenue,
-    addExpense, deleteExpense,
+    addRevenue, updateRevenue, deleteRevenue,
+    addExpense, updateExpense, deleteExpense,
     addCategory, deleteCategory,
     addBillName, deleteBillName,
-    addCustomer, deleteCustomer,
+    addCustomer, updateCustomer, deleteCustomer, isCustomerNameDuplicate,
     exportData, importData, resetData
   }
 

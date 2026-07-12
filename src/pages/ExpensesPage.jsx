@@ -1,21 +1,33 @@
 import { useState, useMemo } from 'react'
-import { Plus, Trash2, Receipt, Wallet, Clock } from 'lucide-react'
+import { Plus, Trash2, Receipt, Wallet, Clock, Pencil } from 'lucide-react'
 import { useStore, DEFAULT_BANKS } from '../lib/store'
-import { formatAmount, formatJalaliLong, todayISO, filterByDate, toPersianDigits } from '../lib/jalali'
+import { formatAmount, formatJalaliLong, todayISO, filterByDate, sortByDate, toPersianDigits } from '../lib/jalali'
 import Modal from '../components/Modal'
 import BankLogo from '../components/BankLogo'
 import FilterBar from '../components/FilterBar'
+import SortButton from '../components/SortButton'
 import AmountInput from '../components/AmountInput'
 import JalaliDatePicker from '../components/JalaliDatePicker'
+import ConfirmActionDialog from '../components/ConfirmActionDialog'
 
 export default function ExpensesPage() {
-  const { expenses, accounts, categories, billNames, customers, currency, addExpense, deleteExpense, addAccount, addCategory, addBillName, deleteBillName, addCustomer } = useStore()
+  const {
+    expenses, accounts, categories, billNames, customers, currency,
+    addExpense, updateExpense, deleteExpense, addAccount, addCategory,
+    addBillName, deleteBillName, addCustomer
+  } = useStore()
+
   const [showForm, setShowForm] = useState(false)
   const [showBankPicker, setShowBankPicker] = useState(false)
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [showBillManager, setShowBillManager] = useState(false)
   const [showAddCustomer, setShowAddCustomer] = useState(false)
   const [filter, setFilter] = useState('all')
+  const [selectedMonth, setSelectedMonth] = useState(null)
+  const [sortDir, setSortDir] = useState('desc')
+  const [editingId, setEditingId] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [editConfirm, setEditConfirm] = useState(false)
 
   const [amount, setAmount] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -30,7 +42,8 @@ export default function ExpensesPage() {
   const [newBillName, setNewBillName] = useState('')
   const [newCustomerName, setNewCustomerName] = useState('')
 
-  const filtered = filterByDate(expenses, filter)
+  const filtered = filterByDate(expenses, filter, 'date', selectedMonth)
+  const sorted = sortByDate(filtered, sortDir)
   const total = filtered.reduce((s, e) => s + Number(e.amount || 0), 0)
 
   const selectedCategory = categories.find((c) => c.id === categoryId)
@@ -50,16 +63,46 @@ export default function ExpensesPage() {
 
   const resetForm = () => {
     setAmount(''); setCategoryId(''); setAccountId(''); setDate(todayISO())
-    setTime(''); setDescription(''); setCustomerId(''); setBillNameId('')
+    setTime(''); setDescription(''); setCustomerId(''); setBillNameId(''); setEditingId(null)
+  }
+
+  const openAddForm = () => { resetForm(); setShowForm(true) }
+
+  const openEditForm = (exp) => {
+    setEditingId(exp.id)
+    setAmount(exp.amount)
+    setCategoryId(exp.categoryId || '')
+    setAccountId(exp.accountId)
+    setDate(exp.date)
+    setTime(exp.time || '')
+    setDescription(exp.description || '')
+    setCustomerId(exp.customerId || '')
+    setBillNameId(exp.billNameId || '')
+    setShowForm(true)
   }
 
   const handleSubmit = () => {
     if (!amount || !categoryId || !accountId) return
-    addExpense({
+    if (editingId) {
+      setEditConfirm(true)
+    } else {
+      addExpense({
+        amount: Number(amount), categoryId, accountId, date, time,
+        description, customerId: isPayment ? customerId : '',
+        billNameId: isBills ? billNameId : ''
+      })
+      resetForm()
+      setShowForm(false)
+    }
+  }
+
+  const confirmEdit = () => {
+    updateExpense(editingId, {
       amount: Number(amount), categoryId, accountId, date, time,
       description, customerId: isPayment ? customerId : '',
       billNameId: isBills ? billNameId : ''
     })
+    setEditConfirm(false)
     resetForm()
     setShowForm(false)
   }
@@ -94,30 +137,40 @@ export default function ExpensesPage() {
     setShowAddCustomer(false)
   }
 
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      deleteExpense(deleteTarget.id)
+      setDeleteTarget(null)
+    }
+  }
+
   return (
     <div className="px-4 pt-4 pb-28 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">هزینه‌ها</h1>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
+        <button onClick={openAddForm} className="btn-primary">
           <Plus size={20} /> ثبت هزینه
         </button>
       </div>
 
-      <FilterBar filter={filter} onChange={setFilter} />
+      <FilterBar filter={filter} onChange={setFilter} selectedMonth={selectedMonth} onMonthSelect={setSelectedMonth} />
 
-      <div className="card p-4 bg-gradient-to-l from-red-50 to-white dark:from-red-900/20 dark:to-slate-800/80">
-        <p className="text-sm text-slate-500 dark:text-slate-400">مجموع هزینه‌ها</p>
-        <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">{formatAmount(total, currency)}</p>
+      <div className="flex items-center justify-between">
+        <div className="card p-3 flex-1 mr-2 bg-gradient-to-l from-red-50 to-white dark:from-red-900/20 dark:to-slate-800/80">
+          <p className="text-sm text-slate-500 dark:text-slate-400">مجموع هزینه‌ها</p>
+          <p className="text-xl font-bold text-red-600 dark:text-red-400 mt-0.5">{formatAmount(total, currency)}</p>
+        </div>
+        <SortButton sortDir={sortDir} onChange={setSortDir} />
       </div>
 
       <div className="space-y-2">
-        {filtered.length === 0 && (
+        {sorted.length === 0 && (
           <div className="card p-8 text-center text-slate-400">
             <Receipt size={40} className="mx-auto mb-2 opacity-40" />
             <p>هنوز هزینه‌ای ثبت نشده است</p>
           </div>
         )}
-        {filtered.map((exp) => {
+        {sorted.map((exp) => {
           const acc = accounts.find((a) => a.id === exp.accountId)
           const bank = DEFAULT_BANKS.find((b) => b.id === acc?.bankId)
           const cat = categories.find((c) => c.id === exp.categoryId)
@@ -125,20 +178,25 @@ export default function ExpensesPage() {
           const bill = billNames.find((b) => b.id === exp.billNameId)
           return (
             <div key={exp.id} className="card p-3 flex items-center gap-3">
-              <BankLogo bank={bank} size={40} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-800 dark:text-slate-100">{cat?.name || 'نامشخص'}</span>
-                  {cust && <span className="text-xs text-slate-400">• {cust.name}</span>}
-                  {bill && <span className="text-xs text-slate-400">• {bill.name}</span>}
+              <button onClick={() => openEditForm(exp)} className="flex items-center gap-3 flex-1 min-w-0 text-right">
+                <BankLogo bank={bank} size={40} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-slate-800 dark:text-slate-100">{cat?.name || 'نامشخص'}</span>
+                    {cust && <span className="text-xs text-slate-400">• {cust.name}</span>}
+                    {bill && <span className="text-xs text-slate-400">• {bill.name}</span>}
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    {formatJalaliLong(exp.date)}
+                    {exp.time && ` • ${toPersianDigits(exp.time)}`}
+                  </p>
                 </div>
-                <p className="text-xs text-slate-400">
-                  {formatJalaliLong(exp.date)}
-                  {exp.time && ` • ${toPersianDigits(exp.time)}`}
-                </p>
-              </div>
-              <p className="font-bold text-red-600 dark:text-red-400">-{formatAmount(exp.amount, currency)}</p>
-              <button onClick={() => deleteExpense(exp.id)} className="p-2 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+                <p className="font-bold text-red-600 dark:text-red-400 whitespace-nowrap">-{formatAmount(exp.amount, currency)}</p>
+              </button>
+              <button onClick={() => openEditForm(exp)} className="p-2 rounded-lg text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 shrink-0">
+                <Pencil size={16} />
+              </button>
+              <button onClick={() => setDeleteTarget(exp)} className="p-2 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 shrink-0">
                 <Trash2 size={16} />
               </button>
             </div>
@@ -149,7 +207,7 @@ export default function ExpensesPage() {
       <Modal
         open={showForm}
         onClose={() => { setShowForm(false); resetForm() }}
-        title="ثبت هزینه"
+        title={editingId ? 'ویرایش هزینه' : 'ثبت هزینه'}
         size="lg"
         dirty={formDirty}
         onSave={handleSubmit}
@@ -157,7 +215,7 @@ export default function ExpensesPage() {
         footer={({ attemptClose }) => (
           <div className="flex gap-2">
             <button onClick={attemptClose} className="btn-ghost flex-1">انصراف</button>
-            <button onClick={handleSubmit} className="btn-primary flex-1">ثبت</button>
+            <button onClick={handleSubmit} className="btn-primary flex-1">{editingId ? 'ذخیره تغییرات' : 'ثبت'}</button>
           </div>
         )}
       >
@@ -308,6 +366,25 @@ export default function ExpensesPage() {
       >
         <input value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} className="input" placeholder="نام مشتری" autoFocus />
       </Modal>
+
+      <ConfirmActionDialog
+        open={editConfirm}
+        onConfirm={confirmEdit}
+        onCancel={() => setEditConfirm(false)}
+        title="ویرایش هزینه"
+        message="آیا از ویرایش این مورد اطمینان دارید؟"
+        confirmLabel="ذخیره تغییرات"
+      />
+
+      <ConfirmActionDialog
+        open={!!deleteTarget}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+        title="حذف هزینه"
+        message="آیا از حذف این مورد اطمینان دارید؟"
+        confirmLabel="حذف"
+        confirmClass="btn-danger"
+      />
     </div>
   )
 }

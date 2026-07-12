@@ -52,10 +52,6 @@ export default function Modal({ open, onClose, title, children, footer, size = '
     else onClose()
   }
 
-  const handleCancelConfirm = () => {
-    setShowConfirm(false)
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm hidden sm:block" onClick={attemptClose} />
@@ -80,7 +76,7 @@ export default function Modal({ open, onClose, title, children, footer, size = '
         open={showConfirm}
         onSave={handleSave}
         onDiscard={handleDiscard}
-        onCancel={handleCancelConfirm}
+        onCancel={() => setShowConfirm(false)}
       />
     </div>
   )

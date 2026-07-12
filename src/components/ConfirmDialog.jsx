@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 
+// Dirty-state confirmation dialog (save/discard/cancel) for unsaved form changes
 export default function ConfirmDialog({ open, onDiscard, onCancel, onSave }) {
   useEffect(() => {
     if (!open) return
@@ -23,15 +24,9 @@ export default function ConfirmDialog({ open, onDiscard, onCancel, onSave }) {
           تغییراتی که انجام دادید ذخیره نشده. آیا می‌خواهید ذخیره کنید؟
         </p>
         <div className="space-y-2">
-          <button onClick={onSave} className="btn-primary w-full">
-            ذخیره
-          </button>
-          <button onClick={onDiscard} className="btn-danger w-full">
-            ذخیره نکن
-          </button>
-          <button onClick={onCancel} className="btn-ghost w-full">
-            انصراف
-          </button>
+          <button onClick={onSave} className="btn-primary w-full">ذخیره</button>
+          <button onClick={onDiscard} className="btn-danger w-full">ذخیره نکن</button>
+          <button onClick={onCancel} className="btn-ghost w-full">انصراف</button>
         </div>
       </div>
     </div>

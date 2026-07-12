@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
 import { useStore } from '../lib/store'
-import { formatAmount, todayISO, isoToJalali, toPersianDigits, getMonthName, filterByDateRange } from '../lib/jalali'
+import { formatAmount, isoToJalali, toPersianDigits, getMonthName, filterByDateRange } from '../lib/jalali'
 import JalaliDatePicker from '../components/JalaliDatePicker'
 
 export default function ReportsPage() {
