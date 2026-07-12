@@ -1,227 +1,171 @@
 import { useState, useMemo } from 'react'
-import { BarChart3, TrendingUp, TrendingDown, Wallet } from 'lucide-react'
-import { useStore } from '../lib/store'
-import { FilterBar } from '../components/FilterBar'
-import { JalaliDatePicker } from '../components/JalaliDatePicker'
-import { formatAmount, isoToJalali, todayJalali, jalaliToISO, currencyLabel, toPersianDigits } from '../lib/jalali'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
+import { useStore, DEFAULT_BANKS } from '../lib/store'
+import { formatAmount, formatJalaliLong, todayISO, isoToJalali, toPersianDigits, getMonthName, filterByDateRange } from '../lib/jalali'
+import JalaliDatePicker from '../components/JalaliDatePicker'
 
-export function ReportsPage() {
-  const { data, currency } = useStore()
-  const [filter, setFilter] = useState('all')
-  const [customStart, setCustomStart] = useState(null)
-  const [customEnd, setCustomEnd] = useState(null)
-
-  const dateRange = useMemo(() => {
-    const today = todayJalali()
-    if (filter === 'all') return { start: null, end: null }
-    if (filter === 'monthly') {
-      return { start: jalaliToISO({ jy: today.jy, jm: today.jm, jd: 1 }), end: jalaliToISO({ jy: today.jy, jm: today.jm, jd: 30 }) }
-    }
-    if (filter === 'yearly') {
-      return { start: jalaliToISO({ jy: today.jy, jm: 1, jd: 1 }), end: jalaliToISO({ jy: today.jy, jm: 12, jd: 30 }) }
-    }
-    if (filter === 'custom') {
-      return { start: customStart ? jalaliToISO(customStart) : null, end: customEnd ? jalaliToISO(customEnd) : null }
-    }
-    return { start: null, end: null }
-  }, [filter, customStart, customEnd])
-
-  const filteredRevenues = useMemo(() => {
-    return data.revenues.filter((r) => {
-      if (filter === 'all') return true
-      if (dateRange.start && r.date < dateRange.start) return false
-      if (dateRange.end && r.date > dateRange.end) return false
-      return true
-    })
-  }, [data.revenues, filter, dateRange])
-
-  const filteredExpenses = useMemo(() => {
-    return data.expenses.filter((e) => {
-      if (filter === 'all') return true
-      if (dateRange.start && e.date < dateRange.start) return false
-      if (dateRange.end && e.date > dateRange.end) return false
-      return true
-    })
-  }, [data.expenses, filter, dateRange])
-
-  const totalRevenue = filteredRevenues.reduce((s, r) => s + Number(r.amount), 0)
-  const totalExpense = filteredExpenses.reduce((s, e) => s + Number(e.amount), 0)
-  const balance = totalRevenue - totalExpense
+export default function ReportsPage() {
+  const { revenues, expenses, currency } = useStore()
+  const [reportType, setReportType] = useState('monthly') // 'monthly' | 'comparative'
+  const [subType, setSubType] = useState('revenue') // 'revenue' | 'expense'
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   const chartData = useMemo(() => {
-    const months = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-      'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
-    const today = todayJalali()
+    if (reportType === 'monthly') {
+      const items = subType === 'revenue' ? revenues : expenses
+      const filtered = filterByDateRange(items, startDate, endDate)
 
-    if (filter === 'monthly') {
-      const daysInMonth = 30
-      const dayRev = new Array(daysInMonth).fill(0)
-      const dayExp = new Array(daysInMonth).fill(0)
-      filteredRevenues.forEach((r) => {
-        const j = isoToJalali(r.date)
-        if (j && j.jy === today.jy && j.jm === today.jm) dayRev[j.jd - 1] += Number(r.amount)
+      // Group by Jalali month
+      const byMonth = {}
+      filtered.forEach((item) => {
+        if (!item.date) return
+        const [jy, jm] = isoToJalali(item.date)
+        const key = `${jy}-${jm}`
+        if (!byMonth[key]) byMonth[key] = { label: `${getMonthName(jm)} ${toPersianDigits(jy)}`, amount: 0, count: 0 }
+        byMonth[key].amount += Number(item.amount || 0)
+        byMonth[key].count += 1
       })
-      filteredExpenses.forEach((e) => {
-        const j = isoToJalali(e.date)
-        if (j && j.jy === today.jy && j.jm === today.jm) dayExp[j.jd - 1] += Number(e.amount)
+
+      return Object.values(byMonth).sort((a, b) => {
+        const [ay, am] = a.label.split(' ').map((x, i) => i === 1 ? toEnglish(x) : 0)
+        return 0
+      }).map((d) => ({
+        name: d.label,
+        amount: currency === 'toman' ? Math.round(d.amount / 10) : d.amount,
+        count: d.count
+      }))
+    } else {
+      // Comparative: revenue vs expenses by month
+      const revFiltered = filterByDateRange(revenues, startDate, endDate)
+      const expFiltered = filterByDateRange(expenses, startDate, endDate)
+
+      const byMonth = {}
+      revFiltered.forEach((r) => {
+        if (!r.date) return
+        const [jy, jm] = isoToJalali(r.date)
+        const key = `${jy}-${jm}`
+        if (!byMonth[key]) byMonth[key] = { name: `${getMonthName(jm)} ${toPersianDigits(jy)}`, درآمد: 0, هزینه: 0 }
+        byMonth[key].درآمد += Number(r.amount || 0)
       })
-      const buckets = 6
-      const revBuckets = new Array(buckets).fill(0)
-      const expBuckets = new Array(buckets).fill(0)
-      const labels = []
-      for (let i = 0; i < buckets; i++) {
-        const start = i * 5 + 1
-        const end = Math.min(start + 4, daysInMonth)
-        labels.push(`${toPersianDigits(start)}-${toPersianDigits(end)}`)
-        for (let d = start - 1; d < end && d < daysInMonth; d++) {
-          revBuckets[i] += dayRev[d]
-          expBuckets[i] += dayExp[d]
-        }
-      }
-      return { labels, revBuckets, expBuckets }
+      expFiltered.forEach((e) => {
+        if (!e.date) return
+        const [jy, jm] = isoToJalali(e.date)
+        const key = `${jy}-${jm}`
+        if (!byMonth[key]) byMonth[key] = { name: `${getMonthName(jm)} ${toPersianDigits(jy)}`, درآمد: 0, هزینه: 0 }
+        byMonth[key].هزینه += Number(e.amount || 0)
+      })
+
+      return Object.values(byMonth).map((d) => ({
+        name: d.name,
+        درآمد: currency === 'toman' ? Math.round(d.درآمد / 10) : d.درآمد,
+        هزینه: currency === 'toman' ? Math.round(d.هزینه / 10) : d.هزینه
+      }))
     }
+  }, [revenues, expenses, reportType, subType, startDate, endDate, currency])
 
-    if (filter === 'custom' && dateRange.start && dateRange.end) {
-      const revByDay = {}
-      const expByDay = {}
-      filteredRevenues.forEach((r) => { revByDay[r.date] = (revByDay[r.date] || 0) + Number(r.amount) })
-      filteredExpenses.forEach((e) => { expByDay[e.date] = (expByDay[e.date] || 0) + Number(e.amount) })
-      const allDates = [...new Set([...filteredRevenues.map((r) => r.date), ...filteredExpenses.map((e) => e.date)])].sort()
-      const labels = allDates.map((d) => {
-        const j = isoToJalali(d)
-        return j ? `${toPersianDigits(j.jm)}/${toPersianDigits(j.jd)}` : d
-      })
-      return { labels, revBuckets: allDates.map((d) => revByDay[d] || 0), expBuckets: allDates.map((d) => expByDay[d] || 0) }
-    }
+  function toEnglish(s) {
+    return s.replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+  }
 
-    const revByMonth = new Array(12).fill(0)
-    const expByMonth = new Array(12).fill(0)
-    filteredRevenues.forEach((r) => {
-      const j = isoToJalali(r.date)
-      if (j && j.jy === today.jy) revByMonth[j.jm - 1] += Number(r.amount)
-    })
-    filteredExpenses.forEach((e) => {
-      const j = isoToJalali(e.date)
-      if (j && j.jy === today.jy) expByMonth[j.jm - 1] += Number(e.amount)
-    })
-    return { labels: months, revBuckets: revByMonth, expBuckets: expByMonth }
-  }, [filteredRevenues, filteredExpenses, filter, dateRange])
-
-  const maxBar = Math.max(...chartData.revBuckets, ...chartData.expBuckets, 1)
+  const totalRev = filterByDateRange(revenues, startDate, endDate).reduce((s, r) => s + Number(r.amount || 0), 0)
+  const totalExp = filterByDateRange(expenses, startDate, endDate).reduce((s, e) => s + Number(e.amount || 0), 0)
 
   return (
-    <div className="space-y-4 animate-fade">
-      <div>
-        <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">گزارشات</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">تحلیل مالی شما</p>
+    <div className="px-4 pt-4 pb-28 space-y-4">
+      <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">گزارشات</h1>
+
+      {/* Main report type buttons */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setReportType('monthly')}
+          className={`btn ${reportType === 'monthly' ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+        >
+          گزارش ماهیانه
+        </button>
+        <button
+          onClick={() => setReportType('comparative')}
+          className={`btn ${reportType === 'comparative' ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+        >
+          گزارش مقایسه‌ای ماهیانه
+        </button>
       </div>
 
-      <FilterBar
-        value={filter}
-        onChange={setFilter}
-        options={[
-          { key: 'all', label: 'همه' },
-          { key: 'monthly', label: 'ماهیانه' },
-          { key: 'yearly', label: 'سالانه' },
-          { key: 'custom', label: 'بازه دلخواه' },
-        ]}
-      />
-
-      {filter === 'custom' && (
-        <div className="card p-4 space-y-3 animate-fade">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">از تاریخ</label>
-              <JalaliDatePicker value={customStart} onChange={setCustomStart} />
-            </div>
-            <div>
-              <label className="label">تا تاریخ</label>
-              <JalaliDatePicker value={customEnd} onChange={setCustomEnd} />
-            </div>
-          </div>
+      {/* Sub-type for monthly */}
+      {reportType === 'monthly' && (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setSubType('revenue')}
+            className={`chip justify-center py-2.5 ${subType === 'revenue' ? 'bg-green-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+          >
+            درآمد
+          </button>
+          <button
+            onClick={() => setSubType('expense')}
+            className={`chip justify-center py-2.5 ${subType === 'expense' ? 'bg-red-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
+          >
+            هزینه
+          </button>
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="card p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-              <TrendingUp size={18} />
-            </div>
-            <span className="text-sm text-slate-500 dark:text-slate-400">درآمد</span>
-          </div>
-          <div className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
-            {formatAmount(totalRevenue, currency)} {currencyLabel(currency)}
-          </div>
+      {/* Date range pickers */}
+      <div className="space-y-3">
+        <div>
+          <label className="label">از تاریخ</label>
+          <JalaliDatePicker value={startDate} onChange={setStartDate} />
         </div>
-        <div className="card p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-9 h-9 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-600">
-              <TrendingDown size={18} />
-            </div>
-            <span className="text-sm text-slate-500 dark:text-slate-400">هزینه</span>
-          </div>
-          <div className="text-lg font-extrabold text-rose-600 dark:text-rose-400">
-            {formatAmount(totalExpense, currency)} {currencyLabel(currency)}
-          </div>
-        </div>
-        <div className="card p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-9 h-9 rounded-xl bg-brand-500/10 flex items-center justify-center text-brand-600">
-              <Wallet size={18} />
-            </div>
-            <span className="text-sm text-slate-500 dark:text-slate-400">مانده</span>
-          </div>
-          <div className={`text-lg font-extrabold ${balance >= 0 ? 'text-brand-600 dark:text-brand-400' : 'text-rose-600 dark:text-rose-400'}`}>
-            {formatAmount(balance, currency)} {currencyLabel(currency)}
-          </div>
+        <div>
+          <label className="label">تا تاریخ</label>
+          <JalaliDatePicker value={endDate} onChange={setEndDate} />
         </div>
       </div>
 
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="card p-3 bg-green-50 dark:bg-green-900/20">
+          <p className="text-xs text-slate-500 dark:text-slate-400">مجموع درآمد</p>
+          <p className="font-bold text-green-600 dark:text-green-400 text-sm mt-1">{formatAmount(totalRev, currency)}</p>
+        </div>
+        <div className="card p-3 bg-red-50 dark:bg-red-900/20">
+          <p className="text-xs text-slate-500 dark:text-slate-400">مجموع هزینه</p>
+          <p className="font-bold text-red-600 dark:text-red-400 text-sm mt-1">{formatAmount(totalExp, currency)}</p>
+        </div>
+      </div>
+
+      {/* Chart */}
       <div className="card p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <BarChart3 size={20} className="text-brand-600" />
-          <h3 className="font-bold text-slate-800 dark:text-slate-100">
-            {filter === 'monthly' ? 'گزارش ماهیانه' : filter === 'custom' ? 'گزارش مقایسه ای' : 'گزارش سالیانه'}
-          </h3>
-        </div>
-        <div className="flex items-end justify-between gap-1.5 h-48 sm:h-64 overflow-x-auto no-scrollbar">
-          {chartData.labels.map((label, i) => (
-            <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-[30px]">
-              <div className="flex items-end gap-0.5 w-full justify-center h-full">
-                <div
-                  className="w-3 sm:w-4 rounded-t bg-emerald-500/80 transition-all"
-                  style={{ height: `${(chartData.revBuckets[i] / maxBar) * 100}%`, minHeight: chartData.revBuckets[i] > 0 ? '4px' : '0' }}
-                  title={`${formatAmount(chartData.revBuckets[i], currency)} ${currencyLabel(currency)}`}
-                />
-                <div
-                  className="w-3 sm:w-4 rounded-t bg-rose-500/80 transition-all"
-                  style={{ height: `${(chartData.expBuckets[i] / maxBar) * 100}%`, minHeight: chartData.expBuckets[i] > 0 ? '4px' : '0' }}
-                  title={`${formatAmount(chartData.expBuckets[i], currency)} ${currencyLabel(currency)}`}
-                />
-              </div>
-              <span className="text-[10px] text-slate-400 text-center whitespace-nowrap">{label}</span>
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-center gap-4 mt-4">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-emerald-500/80" />
-            <span className="text-xs text-slate-500">درآمد</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded bg-rose-500/80" />
-            <span className="text-xs text-slate-500">هزینه</span>
-          </div>
-        </div>
+        <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4">
+          {reportType === 'monthly'
+            ? `نمودار ${subType === 'revenue' ? 'درآمد' : 'هزینه'} ماهیانه`
+            : 'نمودار مقایسه‌ای درآمد و هزینه'}
+        </h3>
+        {chartData.length === 0 ? (
+          <p className="text-center text-slate-400 py-8">داده‌ای برای نمایش وجود ندارد</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.3} />
+              <XAxis dataKey="name" tick={{ fontSize: 11, fontFamily: 'Vazirmatn' }} />
+              <YAxis tick={{ fontSize: 10 }} width={60} tickFormatter={(v) => toPersianDigits(v)} />
+              <Tooltip
+                formatter={(v) => formatAmount(v, currency)}
+                labelStyle={{ fontFamily: 'Vazirmatn' }}
+                contentStyle={{ fontFamily: 'Vazirmatn', borderRadius: '12px', fontSize: '13px' }}
+              />
+              {reportType === 'comparative' && <Legend />}
+              {reportType === 'monthly' ? (
+                <Bar dataKey="amount" fill={subType === 'revenue' ? '#16a34a' : '#dc2626'} radius={[8, 8, 0, 0]} />
+              ) : (
+                <>
+                  <Bar dataKey="درآمد" fill="#16a34a" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="هزینه" fill="#dc2626" radius={[8, 8, 0, 0]} />
+                </>
+              )}
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
-
-      {filteredRevenues.length === 0 && filteredExpenses.length === 0 && (
-        <div className="card p-10 text-center text-slate-400">
-          <BarChart3 size={40} className="mx-auto mb-3 opacity-50" />
-          <p>داده ای برای نمایش گزارش وجود ندارد.</p>
-        </div>
-      )}
     </div>
   )
 }

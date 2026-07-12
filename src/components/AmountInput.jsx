@@ -1,24 +1,39 @@
+import { useState, useEffect, useRef } from 'react'
 import { toPersianDigits, toEnglishDigits } from '../lib/jalali'
 
-export function AmountInput({ value, onChange, placeholder = 'مبلغ' }) {
-  const format = (val) => {
-    const num = toEnglishDigits(val).replace(/[^0-9]/g, '')
-    if (!num) return ''
-    return toPersianDigits(Number(num).toLocaleString('en-US'))
+export default function AmountInput({ value, onChange, placeholder = 'مبلغ' }) {
+  const [display, setDisplay] = useState('')
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (value !== undefined && value !== '') {
+      setDisplay(toPersianDigits(Number(value).toLocaleString('en-US')))
+    } else {
+      setDisplay('')
+    }
+  }, [value])
+
+  const handleChange = (e) => {
+    const raw = toEnglishDigits(e.target.value).replace(/[^0-9]/g, '')
+    if (raw === '') {
+      setDisplay('')
+      onChange('')
+      return
+    }
+    const num = Number(raw)
+    setDisplay(toPersianDigits(num.toLocaleString('en-US')))
+    onChange(num)
   }
 
   return (
     <input
-      value={value ? format(value) : ''}
-      onChange={(e) => {
-        const raw = e.target.value
-        const num = toEnglishDigits(raw).replace(/[^0-9]/g, '')
-        onChange(format(raw), Number(num))
-      }}
-      className="input"
+      ref={inputRef}
+      type="text"
       inputMode="numeric"
+      value={display}
+      onChange={handleChange}
       placeholder={placeholder}
-      dir="ltr"
+      className="input text-lg font-semibold"
     />
   )
 }

@@ -1,29 +1,40 @@
 import { Landmark } from 'lucide-react'
 
-function shade(hex, percent) {
-  const num = parseInt(hex.replace('#', ''), 16)
-  const r = Math.max(0, Math.min(255, (num >> 16) + percent))
-  const g = Math.max(0, Math.min(255, ((num >> 8) & 0xff) + percent))
-  const b = Math.max(0, Math.min(255, (num & 0xff) + percent))
-  return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)
-}
+export default function BankLogo({ bank, size = 40 }) {
+  if (!bank || bank.id === 'other') {
+    return (
+      <div
+        className="flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300"
+        style={{ width: size, height: size }}
+      >
+        <Landmark size={size * 0.5} />
+      </div>
+    )
+  }
 
-export function BankLogo({ bank, size = 36, className = '' }) {
-  const color = bank?.color || '#64748b'
-  const isCustom = bank?.id === 'other'
-  const label = bank?.short || bank?.name?.slice(0, 2) || '؟'
+  const color = bank.color || '#607d8b'
+  const darker = shadeColor(color, -30)
+
   return (
     <div
-      className={`flex items-center justify-center rounded-xl font-bold text-white shadow-sm shrink-0 ${className}`}
+      className="flex items-center justify-center rounded-full font-bold text-white shadow-sm"
       style={{
         width: size,
         height: size,
-        background: `linear-gradient(135deg, ${color}, ${shade(color, -20)})`,
-        fontSize: size * 0.34,
+        fontSize: size * 0.42,
+        background: `linear-gradient(135deg, ${color}, ${darker})`
       }}
-      title={bank?.name}
     >
-      {isCustom ? <Landmark size={size * 0.5} /> : label.slice(0, 2)}
+      {bank.short || bank.name?.charAt(0) || '؟'}
     </div>
   )
+}
+
+function shadeColor(hex, percent) {
+  const num = parseInt(hex.replace('#', ''), 16)
+  const amt = Math.round(2.55 * percent)
+  const R = Math.max(0, Math.min(255, (num >> 16) + amt))
+  const G = Math.max(0, Math.min(255, ((num >> 8) & 0x00ff) + amt))
+  const B = Math.max(0, Math.min(255, (num & 0x0000ff) + amt))
+  return `#${((1 << 24) + (R << 16) + (G << 8) + B).toString(16).slice(1)}`
 }

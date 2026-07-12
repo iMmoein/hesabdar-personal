@@ -1,131 +1,122 @@
-// Jalali (Shamsi) date utilities — compact, no external deps
-
-const J_DAYS_IN_MONTH = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29]
-const G_DAYS_IN_MONTH = [31, 28, 31, 31, 31, 31, 31, 31, 31, 30, 31, 30, 31]
+// Jalali (Shamsi) date conversion utilities — algorithm per Kazimierz M. Borkowski
 
 const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
 
-export function toPersianDigits(str) {
-  return String(str).replace(/[0-9]/g, (d) => PERSIAN_DIGITS[+d])
+export function toPersianDigits(s) {
+  return String(s).replace(/[0-9]/g, (d) => PERSIAN_DIGITS[+d])
 }
 
-export function toEnglishDigits(str) {
-  return String(str).replace(/[۰-۹]/g, (d) => PERSIAN_DIGITS.indexOf(d))
+export function toEnglishDigits(s) {
+  return String(s).replace(/[۰-۹٦-٩]/g, (d) => {
+    const code = d.charCodeAt(0)
+    if (code >= 0x0660 && code <= 0x0669) return String(code - 0x0660)
+    return String(PERSIAN_DIGITS.indexOf(d))
+  })
 }
 
-function div(a, b) { return Math.floor(a / b) }
+const J_DAYS_IN_MONTH = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29]
+
+export function isLeapJalali(jy) {
+  const breaks = [-61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210, 1635, 2060, 2097, 2192, 2261, 2324, 2394, 2456, 3178]
+  let jp = breaks[0], jm = 0, jump = 0, leap = 0, n = 0
+  for (let i = 1; i <= breaks.length; i++) {
+    if (jy < breaks[i]) { jm = breaks[i - 1]; jump = breaks[i] - jm; break }
+    jp = breaks[i]
+  }
+  n = jy - jp
+  if (n < jump) {
+    if (jump - n < 6) n = n - jump + Math.floor((jump + 4) / 4) - Math.floor((jump + 3) / 4)
+    leap = (n % 4 === 0) ? 1 : 0
+  } else {
+    if (n < jump + 4) {
+      leap = 0
+    } else {
+      leap = (n % 4 === 0 && n % 100 !== 0) ? 1 : 0
+    }
+  }
+  return leap === 1
+}
 
 export function gregorianToJalali(gy, gm, gd) {
-  const g_d_m = G_DAYS_IN_MONTH.slice()
-  let jy
-  if (gy <= 1600) {
-    jy = 0; gy -= 621
-  } else {
-    jy = 979; gy -= 1600
-  }
-  let gy2 = gm > 2 ? gy + 1 : gy
-  let days =
-    365 * gy +
-    div(gy2 + 3, 4) -
-    div(gy2 + 99, 100) +
-    div(gy2 + 399, 400) -
-    80 +
-    gd +
-    g_d_m.slice(0, gm - 1).reduce((a, b) => a + b, 0)
-  jy += 33 * div(days, 12053)
+  const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+  let jy = (gy <= 1600) ? 0 : 979
+  gy -= (gy <= 1600) ? 621 : 1600
+  let gy2 = (gm > 2) ? (gy + 1) : gy
+  let days = 365 * gy + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) - 80 + gd + g_d_m[gm - 1]
+  jy += 33 * Math.floor(days / 12053)
   days %= 12053
-  jy += 4 * div(days, 1461)
+  jy += 4 * Math.floor(days / 1461)
   days %= 1461
   if (days > 365) {
-    jy += div(days - 1, 365)
+    jy += Math.floor((days - 1) / 365)
     days = (days - 1) % 365
   }
-  const jm = days < 186 ? 1 + div(days, 31) : 7 + div(days - 186, 30)
-  const jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30)
+  let jm, jd
+  for (jm = 0; jm < 11 && days >= J_DAYS_IN_MONTH[jm]; jm++) days -= J_DAYS_IN_MONTH[jm]
+  jm++
+  jd = days + 1
   return [jy, jm, jd]
 }
 
 export function jalaliToGregorian(jy, jm, jd) {
-  let gy
-  if (jy <= 979) {
-    gy = 621
-  } else {
-    gy = 1600; jy -= 979
+  let gy = (jy <= 979) ? 621 : 1600
+  let days = (365 * (jy - (jy <= 979 ? 0 : 979)))
+    + (4 * Math.floor((jy - (jy <= 979 ? 0 : 979)) / 4))
+    - (Math.floor((jy - (jy <= 979 ? 0 : 979)) / 100))
+    + (Math.floor((jy - (jy <= 979 ? 0 : 979)) / 400))
+  for (let i = 0; i < jm - 1; i++) days += J_DAYS_IN_MONTH[i]
+  days += jd
+  gy += 33 * Math.floor(days / 12053)
+  days %= 12053
+  gy += 4 * Math.floor(days / 1461)
+  days %= 1461
+  if (days > 365) {
+    gy += Math.floor((days - 1) / 365)
+    days = (days - 1) % 365
   }
-  let days =
-    365 * jy +
-    div(jy, 33) * 8 +
-    div((jy % 33) + 3, 4) +
-    78 +
-    jd +
-    J_DAYS_IN_MONTH.slice(0, jm - 1).reduce((a, b) => a + b, 0)
-  gy += 1600
-  days -= 123
-  if (days >= 0) {
-    gy += div(days, 146097) * 400
-    days %= 146097
-  } else {
-    gy += div(days, 146097) - (days % 146097 !== 0 ? 1 : 0)
-    days = ((days % 146097) + 146097) % 146097
+  let gd, gm
+  const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+  const sal_a = (gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)
+  for (gm = 0; gm < 13 && days >= (g_d_m[gm] + (gm > 1 && sal_a ? 1 : 0)); gm++) {
+    days -= g_d_m[gm] + (gm > 1 && sal_a ? 1 : 0)
   }
-  let leap = 1
-  if (days >= 36525) {
-    days--
-    leap += div(days, 36525)
-    days %= 36525
-    if (days >= 365) {
-      days -= leap === 4 ? 1 : 0
-      leap += div(days, 365)
-      days %= 365
-    }
-  }
-  const sal_a = G_DAYS_IN_MONTH.slice()
-  if (leap === 4 && days === 365) return [gy + 1, 12, 31]
-  const sal_d = days + (days >= 59 && leap <= 2 ? 1 : 0)
-  let gm = 1
-  for (let i = 0; i < 12; i++) {
-    if (sal_d < sal_a[i]) break
-    sal_d -= sal_a[i]
-    gm++
-  }
-  return [gy, gm, sal_d + 1]
+  gd = days + 1
+  gm++
+  return [gy, gm, gd]
 }
 
 export function isoToJalali(iso) {
-  if (!iso) return null
-  const [gy, gm, gd] = iso.split('-').map(Number)
-  const [jy, jm, jd] = gregorianToJalali(gy, gm, gd)
-  return { jy, jm, jd }
+  const [y, m, d] = iso.split('-').map(Number)
+  return gregorianToJalali(y, m, d)
 }
 
-export function jalaliToISO(jalali) {
-  let jy, jm, jd
-  if (typeof jalali === 'string') {
-    const parts = jalali.split('/').map(Number)
-    jy = parts[0]; jm = parts[1]; jd = parts[2]
-  } else {
-    jy = jalali.jy; jm = jalali.jm; jd = jalali.jd
-  }
+export function jalaliToISO(jy, jm, jd) {
   const [gy, gm, gd] = jalaliToGregorian(jy, jm, jd)
   return `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`
 }
 
 export function todayJalali() {
   const now = new Date()
-  const [jy, jm, jd] = gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate())
-  return { jy, jm, jd }
+  return gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate())
 }
 
-export function formatJalaliLong(j) {
-  if (!j) return ''
-  const months = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-    'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
-  return `${toPersianDigits(j.jd)} ${months[j.jm - 1]} ${toPersianDigits(j.jy)}`
+export function todayISO() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
-export function formatJalaliShort(j) {
-  if (!j) return ''
-  return `${toPersianDigits(j.jy)}/${toPersianDigits(String(j.jm).padStart(2, '0'))}/${toPersianDigits(String(j.jd).padStart(2, '0'))}`
+const J_MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
+
+export function formatJalaliLong(iso) {
+  if (!iso) return ''
+  const [jy, jm, jd] = isoToJalali(iso)
+  return `${toPersianDigits(jd)} ${J_MONTHS[jm - 1]} ${toPersianDigits(jy)}`
+}
+
+export function formatJalaliShort(iso) {
+  if (!iso) return ''
+  const [jy, jm, jd] = isoToJalali(iso)
+  return `${toPersianDigits(jd)} ${J_MONTHS[jm - 1]}`
 }
 
 export function formatRial(n) {
@@ -133,40 +124,52 @@ export function formatRial(n) {
 }
 
 export function formatToman(n) {
-  return toPersianDigits(Number((n || 0) / 10).toLocaleString('en-US'))
+  return toPersianDigits(Number(n || 0).toLocaleString('en-US'))
 }
 
-export function formatAmount(n, currency = 'rial') {
-  if (currency === 'toman') return formatToman(n)
-  return formatRial(n)
+export function formatAmount(n, currency) {
+  const v = currency === 'toman' ? Math.round(Number(n || 0) / 10) : Number(n || 0)
+  return `${formatRial(v)} ${currencyLabel(currency)}`
 }
 
 export function currencyLabel(currency) {
   return currency === 'toman' ? 'تومان' : 'ریال'
 }
 
-export function filterByDate(item, filter, customStart, customEnd) {
-  if (filter === 'all') return true
-  if (filter === 'custom') {
-    if (customStart && item.date < customStart) return false
-    if (customEnd && item.date > customEnd) return false
-    return true
-  }
-  const today = new Date()
-  const [jy, jm, jd] = gregorianToJalali(today.getFullYear(), today.getMonth() + 1, today.getDate())
-  if (filter === 'monthly') {
-    return item.date >= jalaliToISO({ jy, jm, jd: 1 }) && item.date <= jalaliToISO({ jy, jm, jd: 31 })
-  }
-  if (filter === 'yearly') {
-    return item.date >= jalaliToISO({ jy, jm: 1, jd: 1 }) && item.date <= jalaliToISO({ jy, jm: 12, jd: 29 })
-  }
-  return true
+// filter: 'all' | 'monthly' | 'yearly'
+export function filterByDate(items, filter, dateField = 'date') {
+  if (filter === 'all') return items
+  const [ty, tm] = todayJalali()
+  return items.filter((it) => {
+    if (!it[dateField]) return false
+    const [jy, jm] = isoToJalali(it[dateField])
+    if (filter === 'yearly') return jy === ty
+    return jy === ty && jm === tm
+  })
 }
 
 export function formatFilterRange(filter) {
-  if (filter === 'all') return 'همه'
-  if (filter === 'monthly') return 'ماهیانه'
-  if (filter === 'yearly') return 'سالانه'
-  if (filter === 'custom') return 'بازه دلخواه'
-  return ''
+  if (filter === 'all') return 'همه موارد'
+  const [ty, tm] = todayJalali()
+  if (filter === 'yearly') return `سال ${toPersianDigits(ty)}`
+  return `${J_MONTHS[tm - 1]} ${toPersianDigits(ty)}`
+}
+
+export function filterByDateRange(items, startISO, endISO, dateField = 'date') {
+  if (!startISO && !endISO) return items
+  return items.filter((it) => {
+    if (!it[dateField]) return false
+    if (startISO && it[dateField] < startISO) return false
+    if (endISO && it[dateField] > endISO) return false
+    return true
+  })
+}
+
+export function getMonthName(jm) {
+  return J_MONTHS[jm - 1]
+}
+
+export function getMonthNameFromISO(iso) {
+  const [, jm] = isoToJalali(iso)
+  return J_MONTHS[jm - 1]
 }

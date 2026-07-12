@@ -2,64 +2,53 @@ name: Android Debug APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build Debug APK
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '21'
 
-      - name: Set up Node.js 20
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
 
-      - name: Set up Android SDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
           accept-android-sdk-licenses: true
 
-      - name: Install npm dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: Build the Vite project
+      - name: Build web
         run: npm run build
 
       - name: Add Android platform
         run: |
           if [ ! -d "android" ]; then
             npx cap add android
-          else
-            echo "Android platform already exists"
           fi
 
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Build debug APK with Gradle
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+      - name: Build APK
+        run: cd android && chmod +x gradlew && ./gradlew assembleDebug
 
-      - name: Upload debug APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: hesabdar-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
-          if-no-files-found: error

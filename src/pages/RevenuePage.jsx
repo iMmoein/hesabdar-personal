@@ -1,126 +1,78 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Plus, Trash2, TrendingUp, Wallet } from 'lucide-react'
-import { useStore } from '../lib/store'
-import { Modal } from '../components/Modal'
-import { JalaliDatePicker } from '../components/JalaliDatePicker'
-import { AmountInput } from '../components/AmountInput'
-import { BankLogo } from '../components/BankLogo'
-import { FilterBar, filterByDate, formatFilterRange } from '../components/FilterBar'
-import { formatAmount, formatJalaliLong, isoToJalali, todayJalali, jalaliToISO, currencyLabel } from '../lib/jalali'
+import { useStore, DEFAULT_BANKS } from '../lib/store'
+import { formatAmount, formatJalaliLong, todayISO, filterByDate, toPersianDigits } from '../lib/jalali'
+import Modal from '../components/Modal'
+import BankLogo from '../components/BankLogo'
+import FilterBar from '../components/FilterBar'
+import AmountInput from '../components/AmountInput'
+import JalaliDatePicker from '../components/JalaliDatePicker'
 
-export function RevenuePage() {
-  const { data, addRevenue, deleteRevenue, addAccount, currency } = useStore()
+export default function RevenuePage() {
+  const { revenues, accounts, currency, addRevenue, deleteRevenue, addAccount } = useStore()
   const [showForm, setShowForm] = useState(false)
-  const [showAccount, setShowAccount] = useState(false)
+  const [showBankPicker, setShowBankPicker] = useState(false)
   const [filter, setFilter] = useState('all')
-
   const [amount, setAmount] = useState('')
-  const [amountNum, setAmountNum] = useState(0)
   const [accountId, setAccountId] = useState('')
-  const [date, setDate] = useState(todayJalali())
+  const [date, setDate] = useState(todayISO())
 
-  const [accBank, setAccBank] = useState(data.banks[0]?.id || 'melli')
-  const [accCustomBank, setAccCustomBank] = useState('')
+  const filtered = filterByDate(revenues, filter)
+  const total = filtered.reduce((s, r) => s + Number(r.amount || 0), 0)
 
-  const resetForm = () => {
-    setAmount(''); setAmountNum(0); setAccountId(''); setDate(todayJalali())
-  }
+  const resetForm = () => { setAmount(''); setAccountId(''); setDate(todayISO()) }
 
-  const submit = () => {
-    if (!amountNum || !accountId) return
-    addRevenue({ amount: amountNum, accountId, date: jalaliToISO(date) })
+  const handleSubmit = () => {
+    if (!amount || !accountId) return
+    addRevenue({ amount: Number(amount), accountId, date })
     resetForm()
     setShowForm(false)
   }
 
-  const submitAccount = () => {
-    const bank = data.banks.find((b) => b.id === accBank)
-    const customName = accBank === 'other' ? accCustomBank.trim() : ''
-    const accountName = customName || bank?.name || 'حساب'
-    const id = addAccount({ name: accountName, number: '', balance: 0, bankId: accBank, customBankName: customName })
-    setAccountId(id)
-    setAccBank(data.banks[0]?.id || 'melli')
-    setAccCustomBank('')
-    setShowAccount(false)
+  const handleAddAccount = (bankId) => {
+    const bank = DEFAULT_BANKS.find((b) => b.id === bankId)
+    const acc = addAccount({ bankId, name: bank.name })
+    setAccountId(acc.id)
+    setShowBankPicker(false)
   }
-
-  const getAccount = (id) => data.accounts.find((a) => a.id === id)
-  const getBank = (id) => data.banks.find((b) => b.id === id)
-  const getEffectiveBank = (acc) => {
-    if (!acc) return null
-    const base = getBank(acc.bankId)
-    if (!base) return null
-    if (acc.bankId === 'other' && acc.customBankName) {
-      return { ...base, name: acc.customBankName, short: acc.customBankName.slice(0, 6) }
-    }
-    return base
-  }
-
-  const filtered = useMemo(
-    () => data.revenues.filter((r) => filterByDate(r, filter)).sort((a, b) => b.date.localeCompare(a.date)),
-    [data.revenues, filter]
-  )
-  const total = filtered.reduce((s, r) => s + Number(r.amount), 0)
 
   return (
-    <div className="space-y-4 animate-fade">
+    <div className="px-4 pt-4 pb-28 space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">درآمد</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">مدیریت درآمدهای شما</p>
-        </div>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">درآمد</h1>
         <button onClick={() => setShowForm(true)} className="btn-primary">
-          <Plus size={18} /> درآمد جدید
+          <Plus size={20} /> ثبت درآمد
         </button>
       </div>
 
-      <div className="card p-4 bg-gradient-to-l from-emerald-500/10 to-transparent">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 flex items-center justify-center text-emerald-600">
-            <TrendingUp size={24} />
-          </div>
-          <div className="flex-1">
-            <div className="text-sm text-slate-500 dark:text-slate-400">جمع درآمد ({formatFilterRange(filter)})</div>
-            <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
-              {formatAmount(total, currency)} {currencyLabel(currency)}
-            </div>
-          </div>
-        </div>
+      <FilterBar filter={filter} onChange={setFilter} />
+
+      <div className="card p-4 bg-gradient-to-l from-brand-50 to-white dark:from-brand-900/20 dark:to-slate-800/80">
+        <p className="text-sm text-slate-500 dark:text-slate-400">مجموع درآمد ({filter === 'all' ? 'همه' : filter === 'monthly' ? 'ماهیانه' : 'سالانه'})</p>
+        <p className="text-2xl font-bold text-brand-600 dark:text-brand-400 mt-1">{formatAmount(total, currency)}</p>
       </div>
 
-      <FilterBar value={filter} onChange={setFilter} />
-
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         {filtered.length === 0 && (
-          <div className="card p-10 text-center text-slate-400">
-            <Wallet size={40} className="mx-auto mb-3 opacity-50" />
-            <p>هنوز درآمدی ثبت نشده است.</p>
+          <div className="card p-8 text-center text-slate-400">
+            <TrendingUp size={40} className="mx-auto mb-2 opacity-40" />
+            <p>هنوز درآمدی ثبت نشده است</p>
           </div>
         )}
-        {filtered.map((r) => {
-          const acc = getAccount(r.accountId)
-          const bank = acc ? getEffectiveBank(acc) : null
+        {filtered.map((rev) => {
+          const acc = accounts.find((a) => a.id === rev.accountId)
+          const bank = DEFAULT_BANKS.find((b) => b.id === acc?.bankId)
           return (
-            <div key={r.id} className="card p-3.5 flex items-center gap-3 animate-fade">
-              {bank ? <BankLogo bank={bank} /> : <div className="w-9 h-9 rounded-xl bg-slate-200" />}
+            <div key={rev.id} className="card p-3 flex items-center gap-3">
+              <BankLogo bank={bank} size={44} />
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-slate-800 dark:text-slate-100 truncate">
-                  {acc?.name || 'نامشخص'}
-                </div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {formatJalaliLong(isoToJalali(r.date))}
-                </div>
+                <p className="font-semibold text-slate-800 dark:text-slate-100 truncate">{acc?.name || 'نامشخص'}</p>
+                <p className="text-xs text-slate-400">{formatJalaliLong(rev.date)}</p>
               </div>
-              <div className="text-left shrink-0">
-                <div className="font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                  +{formatAmount(r.amount, currency)}
-                </div>
-                <div className="text-xs text-slate-400">{currencyLabel(currency)}</div>
+              <div className="text-left">
+                <p className="font-bold text-green-600 dark:text-green-400">+{formatAmount(rev.amount, currency)}</p>
               </div>
-              <button
-                onClick={() => deleteRevenue(r.id)}
-                className="p-2 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition shrink-0"
-              >
+              <button onClick={() => deleteRevenue(rev.id)} className="p-2 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
                 <Trash2 size={16} />
               </button>
             </div>
@@ -128,44 +80,26 @@ export function RevenuePage() {
         })}
       </div>
 
-      {filtered.length > 0 && (
-        <div className="card p-4 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
-          <span className="text-sm text-slate-600 dark:text-slate-300">مجموع کل</span>
-          <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
-            {formatAmount(total, currency)} {currencyLabel(currency)}
-          </span>
-        </div>
-      )}
-
-      <Modal
-        open={showForm}
-        onClose={() => setShowForm(false)}
-        title="درآمد جدید"
-        footer={
-          <>
-            <button onClick={() => setShowForm(false)} className="btn-ghost">انصراف</button>
-            <button onClick={submit} className="btn-primary">تایید</button>
-          </>
-        }
-      >
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="ثبت درآمد" footer={
+        <button onClick={handleSubmit} className="btn-primary w-full">ثبت</button>
+      }>
         <div className="space-y-4">
           <div>
-            <label className="label">مبلغ ({currencyLabel(currency)})</label>
-            <AmountInput value={amount} onChange={(fmt, num) => { setAmount(fmt); setAmountNum(num) }} />
+            <label className="label">مبلغ</label>
+            <AmountInput value={amount} onChange={setAmount} />
           </div>
           <div>
             <label className="label">حساب</label>
             <div className="flex gap-2">
               <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="input flex-1">
-                <option value="">انتخاب حساب...</option>
-                {data.accounts.map((a) => {
-                  const b = data.banks.find((b) => b.id === a.bankId)
-                  const label = (a.bankId === 'other' && a.customBankName) ? a.customBankName : b?.name
-                  return <option key={a.id} value={a.id}>{a.name} - {label}</option>
+                <option value="">انتخاب حساب</option>
+                {accounts.map((a) => {
+                  const bank = DEFAULT_BANKS.find((b) => b.id === a.bankId)
+                  return <option key={a.id} value={a.id}>{bank?.name || a.name}</option>
                 })}
               </select>
-              <button type="button" onClick={() => setShowAccount(true)} className="btn-ghost whitespace-nowrap">
-                <Plus size={16} /> حساب جدید
+              <button onClick={() => setShowBankPicker(true)} className="btn-ghost px-3">
+                <Wallet size={18} />
               </button>
             </div>
           </div>
@@ -176,47 +110,18 @@ export function RevenuePage() {
         </div>
       </Modal>
 
-      <Modal
-        open={showAccount}
-        onClose={() => setShowAccount(false)}
-        title="افزودن حساب جدید"
-        size="lg"
-        footer={
-          <>
-            <button onClick={() => setShowAccount(false)} className="btn-ghost">انصراف</button>
-            <button onClick={submitAccount} className="btn-primary">تایید</button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          <label className="label">انتخاب بانک</label>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            {data.banks.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => setAccBank(b.id)}
-                className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition
-                  ${accBank === b.id
-                    ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300'}`}
-              >
-                <BankLogo bank={b} size={32} />
-                <span className="text-xs font-medium text-slate-700 dark:text-slate-200 text-center truncate w-full">{b.short}</span>
-              </button>
-            ))}
-          </div>
-          {accBank === 'other' && (
-            <div className="mt-3 animate-fade">
-              <label className="label">نام بانک (دلخواه)</label>
-              <input
-                value={accCustomBank}
-                onChange={(e) => setAccCustomBank(e.target.value)}
-                className="input"
-                placeholder="نام بانک را وارد کنید"
-              />
-            </div>
-          )}
+      <Modal open={showBankPicker} onClose={() => setShowBankPicker(false)} title="انتخاب بانک" size="xl">
+        <div className="grid grid-cols-3 gap-2">
+          {DEFAULT_BANKS.map((bank) => (
+            <button
+              key={bank.id}
+              onClick={() => handleAddAccount(bank.id)}
+              className="card p-3 flex flex-col items-center gap-2 hover:border-brand-400 transition"
+            >
+              <BankLogo bank={bank} size={44} />
+              <span className="text-xs text-slate-600 dark:text-slate-300 text-center">{bank.name}</span>
+            </button>
+          ))}
         </div>
       </Modal>
     </div>

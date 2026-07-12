@@ -1,146 +1,99 @@
-import { useState, useRef, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
-import { todayJalali, toPersianDigits, jalaliToGregorian, formatJalaliShort } from '../lib/jalali'
+import { useState } from 'react'
+import { ChevronRight, ChevronLeft } from 'lucide-react'
+import { gregorianToJalali, jalaliToGregorian, jalaliToISO, isoToJalali, isLeapJalali, todayJalali, toPersianDigits } from '../lib/jalali'
 
-const MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-  'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
-
+const WEEKDAYS = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج']
+const MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
 const J_DAYS = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29]
 
-function isLeap(jy) {
-  const breaks = [-61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210, 1635, 2060, 2097, 2192, 2268, 2324, 2394, 2456, 3178]
-  let jp = breaks[0], jm = breaks[1], jump = 0
-  for (let i = 2; i < breaks.length; i += 2) {
-    const jt = breaks[i]
-    if (jy < jt) { jm = jt; break }
-    jp = jt
-  }
-  let n = jy - jp
-  if (jy === jm) jump = 0
-  else {
-    const div = Math.floor((jm - jp) / 12)
-    jump = n - div * 12
-  }
-  let leap = (n + 1) * 12 - jump
-  return leap % 4 === 0
-}
+export default function JalaliDatePicker({ value, onChange }) {
+  // value is ISO string; we parse to jalali for initial view
+  const initial = value ? isoToJalali(value) : todayJalali()
+  const [viewYear, setViewYear] = useState(initial[0])
+  const [viewMonth, setViewMonth] = useState(initial[1]) // 1-12
+  // selectedDay tracks the exact day the user picks
+  const [selected, setSelected] = useState(value ? initial : null)
 
-export function JalaliDatePicker({ value, onChange }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
+  const daysInMonth = viewMonth === 12 && isLeapJalali(viewYear) ? 30 : J_DAYS[viewMonth - 1]
 
-  const initial = (() => {
-    if (!value) {
-      const t = todayJalali()
-      return { jy: t.jy, jm: t.jm, jd: t.jd }
-    }
-    if (typeof value === 'string') {
-      const parts = value.split('/').map(Number)
-      return { jy: parts[0], jm: parts[1], jd: parts[2] }
-    }
-    return { jy: value.jy, jm: value.jm, jd: value.jd }
-  })()
-
-  const [view, setView] = useState({ jy: initial.jy, jm: initial.jm })
-  const [selected, setSelected] = useState({ jy: initial.jy, jm: initial.jm, jd: initial.jd })
-
-  useEffect(() => {
-    if (value) {
-      const v = typeof value === 'string'
-        ? { jy: +value.split('/')[0], jm: +value.split('/')[1], jd: +value.split('/')[2] }
-        : value
-      setSelected(v)
-      setView({ jy: v.jy, jm: v.jm })
-    }
-  }, [value])
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
-    }
-    if (open) {
-      document.addEventListener('mousedown', handler)
-      return () => document.removeEventListener('mousedown', handler)
-    }
-  }, [open])
-
-  const today = todayJalali()
-  const daysInMonth = J_DAYS[view.jm - 1] + (view.jm === 12 && isLeap(view.jy) ? 1 : 0)
-
-  const firstDayOfMonth = (() => {
-    const [gy, gm, gd] = jalaliToGregorian(view.jy, view.jm, 1)
-    const d = new Date(gy, gm - 1, gd)
-    return (d.getDay() + 1) % 7
-  })()
-
-  const handleSelect = (day) => {
-    const newDate = { jy: view.jy, jm: view.jm, jd: day }
-    setSelected(newDate)
-    onChange(newDate)
-    setOpen(false)
-  }
+  // Find weekday of day 1 of the month. Convert jalali(viewYear, viewMonth, 1) to gregorian, then getDay().
+  const [gy, gm, gd] = jalaliToGregorian(viewYear, viewMonth, 1)
+  const firstDow = new Date(gy, gm - 1, gd).getDay() // 0=Sunday
+  // Convert JS getDay (0=Sun) to Persian (0=Sat)
+  const offset = (firstDow + 1) % 7
 
   const prevMonth = () => {
-    setView((v) => v.jm === 1 ? { jy: v.jy - 1, jm: 12 } : { jy: v.jy, jm: v.jm - 1 })
+    if (viewMonth === 1) { setViewMonth(12); setViewYear((y) => y - 1) }
+    else setViewMonth((m) => m - 1)
+  }
+  const nextMonth = () => {
+    if (viewMonth === 12) { setViewMonth(1); setViewYear((y) => y + 1) }
+    else setViewMonth((m) => m + 1)
   }
 
-  const nextMonth = () => {
-    setView((v) => v.jm === 12 ? { jy: v.jy + 1, jm: 1 } : { jy: v.jy, jm: v.jm + 1 })
+  const handleDayClick = (day) => {
+    // Save EXACT selected date — do NOT override with today
+    const iso = jalaliToISO(viewYear, viewMonth, day)
+    setSelected([viewYear, viewMonth, day])
+    onChange(iso)
   }
+
+  const isSelected = (day) => {
+    if (!selected) return false
+    return selected[0] === viewYear && selected[1] === viewMonth && selected[2] === day
+  }
+
+  const isToday = (day) => {
+    const [ty, tm, td] = todayJalali()
+    return ty === viewYear && tm === viewMonth && td === day
+  }
+
+  const cells = []
+  for (let i = 0; i < offset; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="input flex items-center justify-between text-right"
-      >
-        <span>{toPersianDigits(formatJalaliShort(selected))}</span>
-        <Calendar size={18} className="text-slate-400" />
-      </button>
-      {open && (
-        <div className="absolute z-50 mt-1 right-0 w-72 card p-3 animate-fade shadow-lg">
-          <div className="flex items-center justify-between mb-3">
-            <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
-              <ChevronRight size={20} className="text-slate-500" />
-            </button>
-            <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">
-              {MONTHS[view.jm - 1]} {toPersianDigits(view.jy)}
-            </span>
-            <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
-              <ChevronLeft size={20} className="text-slate-500" />
-            </button>
+    <div className="card p-4">
+      <div className="flex items-center justify-between mb-3">
+        <button type="button" onClick={prevMonth} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+          <ChevronRight size={20} className="text-slate-600 dark:text-slate-300" />
+        </button>
+        <span className="font-bold text-slate-800 dark:text-slate-100">
+          {MONTHS[viewMonth - 1]} {toPersianDigits(viewYear)}
+        </span>
+        <button type="button" onClick={nextMonth} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+          <ChevronLeft size={20} className="text-slate-600 dark:text-slate-300" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {WEEKDAYS.map((w) => (
+          <div key={w} className="text-center text-xs font-medium text-slate-400 py-1">{w}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((day, i) => (
+          <div key={i} className="aspect-square">
+            {day && (
+              <button
+                type="button"
+                onClick={() => handleDayClick(day)}
+                className={`w-full h-full flex items-center justify-center rounded-lg text-sm font-medium transition ${
+                  isSelected(day)
+                    ? 'bg-brand-600 text-white'
+                    : isToday(day)
+                    ? 'bg-brand-100 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 font-bold'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+                }`}
+              >
+                {toPersianDigits(day)}
+              </button>
+            )}
           </div>
-          <div className="grid grid-cols-7 gap-1 mb-1">
-            {['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'].map((d, i) => (
-              <div key={i} className="text-center text-xs text-slate-400 font-medium py-1">{d}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-              <div key={'e' + i} />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1
-              const isSelected = selected.jy === view.jy && selected.jm === view.jm && selected.jd === day
-              const isToday = today.jy === view.jy && today.jm === view.jm && today.jd === day
-              return (
-                <button
-                  key={day}
-                  onClick={() => handleSelect(day)}
-                  className={`aspect-square flex items-center justify-center rounded-lg text-sm transition
-                    ${isSelected
-                      ? 'bg-brand-600 text-white font-bold'
-                      : isToday
-                        ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 font-medium'
-                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    }`}
-                >
-                  {toPersianDigits(day)}
-                </button>
-              )
-            })}
-          </div>
+        ))}
+      </div>
+      {selected && (
+        <div className="mt-3 text-center text-sm text-slate-500 dark:text-slate-400">
+          تاریخ انتخاب شده: {toPersianDigits(selected[2])} {MONTHS[selected[1] - 1]} {toPersianDigits(selected[0])}
         </div>
       )}
     </div>
