@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Home, TrendingUp, TrendingDown, Users, BarChart3, Settings } from 'lucide-react'
+import { Chrome as Home, TrendingUp, TrendingDown, Users, BarChart3, Settings } from 'lucide-react'
 import { StoreProvider, useStore } from './lib/store'
 import { HomePage } from './pages/HomePage'
 import { RevenuePage } from './pages/RevenuePage'
