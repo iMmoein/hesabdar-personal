@@ -27,16 +27,14 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
         paddingRight: 'max(0px, env(safe-area-inset-right))',
       }}
     >
-      {/* Backdrop - hidden on mobile (modal is fullscreen) */}
       <div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-fade sm:block hidden"
+        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-fade hidden sm:block"
         onClick={onClose}
       />
       <div
         className={`relative w-full ${maxW} card flex flex-col animate-fade overflow-hidden
           fixed inset-0 sm:static sm:inset-auto sm:rounded-2xl sm:max-h-[90vh] h-full sm:h-auto`}
       >
-        {/* Sticky header */}
         <div
           className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0 bg-white dark:bg-slate-800/95 sm:rounded-t-2xl"
           style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
@@ -50,7 +48,6 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
           </button>
         </div>
 
-        {/* Scrollable body */}
         <div
           className="px-5 py-4 overflow-y-auto flex-1 overscroll-contain"
           style={{ WebkitOverflowScrolling: 'touch' }}
@@ -58,7 +55,6 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
           {children}
         </div>
 
-        {/* Sticky footer */}
         {footer && (
           <div
             className="px-5 py-4 border-t border-slate-200 dark:border-slate-700 flex gap-3 justify-end shrink-0 bg-white dark:bg-slate-800/95 sm:rounded-b-2xl"

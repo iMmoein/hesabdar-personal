@@ -11,12 +11,9 @@ export function ReportsPage() {
   const [customStart, setCustomStart] = useState(null)
   const [customEnd, setCustomEnd] = useState(null)
 
-  // Determine date range based on filter
   const dateRange = useMemo(() => {
     const today = todayJalali()
-    if (filter === 'all') {
-      return { start: null, end: null }
-    }
+    if (filter === 'all') return { start: null, end: null }
     if (filter === 'monthly') {
       return {
         start: jalaliToISO({ jy: today.jy, jm: today.jm, jd: 1 }),
@@ -38,15 +35,9 @@ export function ReportsPage() {
     return { start: null, end: null }
   }, [filter, customStart, customEnd])
 
-  // Filter revenues and expenses by date range
   const filteredRevenues = useMemo(() => {
     return data.revenues.filter((r) => {
       if (filter === 'all') return true
-      if (filter === 'custom') {
-        if (dateRange.start && r.date < dateRange.start) return false
-        if (dateRange.end && r.date > dateRange.end) return false
-        return true
-      }
       if (dateRange.start && r.date < dateRange.start) return false
       if (dateRange.end && r.date > dateRange.end) return false
       return true
@@ -56,11 +47,6 @@ export function ReportsPage() {
   const filteredExpenses = useMemo(() => {
     return data.expenses.filter((e) => {
       if (filter === 'all') return true
-      if (filter === 'custom') {
-        if (dateRange.start && e.date < dateRange.start) return false
-        if (dateRange.end && e.date > dateRange.end) return false
-        return true
-      }
       if (dateRange.start && e.date < dateRange.start) return false
       if (dateRange.end && e.date > dateRange.end) return false
       return true
@@ -71,14 +57,12 @@ export function ReportsPage() {
   const totalExpense = filteredExpenses.reduce((s, e) => s + Number(e.amount), 0)
   const balance = totalRevenue - totalExpense
 
-  // Build monthly chart data
   const chartData = useMemo(() => {
     const months = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
       'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
     const today = todayJalali()
 
     if (filter === 'monthly') {
-      // Daily breakdown for current month
       const daysInMonth = 30
       const dayRev = new Array(daysInMonth).fill(0)
       const dayExp = new Array(daysInMonth).fill(0)
@@ -94,7 +78,6 @@ export function ReportsPage() {
           dayExp[j.jd - 1] += Number(e.amount)
         }
       })
-      // Group into 5-day buckets for readability
       const buckets = 6
       const revBuckets = new Array(buckets).fill(0)
       const expBuckets = new Array(buckets).fill(0)
@@ -112,15 +95,10 @@ export function ReportsPage() {
     }
 
     if (filter === 'custom' && dateRange.start && dateRange.end) {
-      // Group by day for custom range
-      const startJ = isoToJalali(dateRange.start)
-      const endJ = isoToJalali(dateRange.end)
-      const days = []
       const revByDay = {}
       const expByDay = {}
       filteredRevenues.forEach((r) => { revByDay[r.date] = (revByDay[r.date] || 0) + Number(r.amount) })
       filteredExpenses.forEach((e) => { expByDay[e.date] = (expByDay[e.date] || 0) + Number(e.amount) })
-      // Simple: just list all unique dates in range
       const allDates = [...new Set([...filteredRevenues.map((r) => r.date), ...filteredExpenses.map((e) => e.date)])].sort()
       const labels = allDates.map((d) => {
         const j = isoToJalali(d)
@@ -133,7 +111,6 @@ export function ReportsPage() {
       }
     }
 
-    // Default: monthly breakdown for current year
     const revByMonth = new Array(12).fill(0)
     const expByMonth = new Array(12).fill(0)
     filteredRevenues.forEach((r) => {
@@ -182,7 +159,6 @@ export function ReportsPage() {
         </div>
       )}
 
-      {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -219,7 +195,6 @@ export function ReportsPage() {
         </div>
       </div>
 
-      {/* Bar chart */}
       <div className="card p-4">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 size={20} className="text-brand-600" />

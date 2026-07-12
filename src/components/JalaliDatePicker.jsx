@@ -1,17 +1,34 @@
 import { useState, useRef, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
-import { todayJalali, toPersianDigits, gregorianToJalali, jalaliToGregorian, jalaliToISO, isoToJalali, formatJalaliShort } from '../lib/jalali'
+import { todayJalali, toPersianDigits, jalaliToGregorian, formatJalaliShort } from '../lib/jalali'
 
 const MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
   'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
 
 const J_DAYS = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29]
 
+function isLeap(jy) {
+  const breaks = [-61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210, 1635, 2060, 2097, 2192, 2268, 2324, 2394, 2456, 3178]
+  let jp = breaks[0], jm = breaks[1], jump = 0
+  for (let i = 2; i < breaks.length; i += 2) {
+    const jt = breaks[i]
+    if (jy < jt) { jm = jt; break }
+    jp = jt
+  }
+  let n = jy - jp
+  if (jy === jm) jump = 0
+  else {
+    const div = Math.floor((jm - jp) / 12)
+    jump = n - div * 12
+  }
+  let leap = (n + 1) * 12 - jump
+  return leap % 4 === 0
+}
+
 export function JalaliDatePicker({ value, onChange }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
-  // Parse the incoming value into a Jalali date
   const initial = (() => {
     if (!value) {
       const t = todayJalali()
@@ -27,7 +44,6 @@ export function JalaliDatePicker({ value, onChange }) {
   const [view, setView] = useState({ jy: initial.jy, jm: initial.jm })
   const [selected, setSelected] = useState({ jy: initial.jy, jm: initial.jm, jd: initial.jd })
 
-  // Sync when value changes externally
   useEffect(() => {
     if (value) {
       const v = typeof value === 'string'
@@ -52,13 +68,8 @@ export function JalaliDatePicker({ value, onChange }) {
   const daysInMonth = J_DAYS[view.jm - 1] + (view.jm === 12 && isLeap(view.jy) ? 1 : 0)
 
   const firstDayOfMonth = (() => {
-    // Calculate weekday of the 1st day of the Jalali month
-    // Convert to Gregorian and get day of week (0=Sunday)
-    const [gy, gm, gd] = jalaliToGregorianArr(view.jy, view.jm, 1)
+    const [gy, gm, gd] = jalaliToGregorian(view.jy, view.jm, 1)
     const d = new Date(gy, gm - 1, gd)
-    // In Iran, week starts on Saturday (weekday 6 in JS = Saturday)
-    // JS: 0=Sun, 1=Mon, ..., 6=Sat
-    // We want: Sat=0, Sun=1, Mon=2, ..., Fri=6
     return (d.getDay() + 1) % 7
   })()
 
@@ -83,8 +94,6 @@ export function JalaliDatePicker({ value, onChange }) {
     })
   }
 
-  const displayValue = formatJalaliShort(selected)
-
   return (
     <div className="relative" ref={ref}>
       <button
@@ -92,12 +101,11 @@ export function JalaliDatePicker({ value, onChange }) {
         onClick={() => setOpen((o) => !o)}
         className="input flex items-center justify-between text-right"
       >
-        <span>{toPersianDigits(displayValue)}</span>
+        <span>{toPersianDigits(formatJalaliShort(selected))}</span>
         <Calendar size={18} className="text-slate-400" />
       </button>
       {open && (
         <div className="absolute z-50 mt-1 right-0 w-72 card p-3 animate-fade shadow-lg">
-          {/* Month navigation */}
           <div className="flex items-center justify-between mb-3">
             <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
               <ChevronRight size={20} className="text-slate-500" />
@@ -109,13 +117,11 @@ export function JalaliDatePicker({ value, onChange }) {
               <ChevronLeft size={20} className="text-slate-500" />
             </button>
           </div>
-          {/* Weekday headers */}
           <div className="grid grid-cols-7 gap-1 mb-1">
             {['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'].map((d, i) => (
               <div key={i} className="text-center text-xs text-slate-400 font-medium py-1">{d}</div>
             ))}
           </div>
-          {/* Days grid */}
           <div className="grid grid-cols-7 gap-1">
             {Array.from({ length: firstDayOfMonth }).map((_, i) => (
               <div key={'e' + i} />
@@ -145,26 +151,4 @@ export function JalaliDatePicker({ value, onChange }) {
       )}
     </div>
   )
-}
-
-function isLeap(jy) {
-  const breaks = [-61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210, 1635, 2060, 2097, 2192, 2268, 2324, 2394, 2456, 3178]
-  let jp = breaks[0], jm = breaks[1], jump = 0
-  for (let i = 2; i < breaks.length; i += 2) {
-    const jt = breaks[i]
-    if (jy < jt) { jm = jt; break }
-    jp = jt
-  }
-  let n = jy - jp
-  if (jy === jm) jump = 0
-  else {
-    const div = Math.floor((jm - jp) / 12)
-    jump = n - div * 12
-  }
-  let leap = (n + 1) * 12 - jump
-  return leap % 4 === 0
-}
-
-function jalaliToGregorianArr(jy, jm, jd) {
-  return jalaliToGregorian(jy, jm, jd)
 }

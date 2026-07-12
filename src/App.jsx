@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Chrome as Home, TrendingUp, TrendingDown, Users, BarChart3, Settings } from 'lucide-react'
-import { StoreProvider, useStore } from './lib/store'
+import { House, TrendingUp, TrendingDown, Users, BarChart3, Settings } from 'lucide-react'
+import { StoreProvider } from './lib/store'
 import { HomePage } from './pages/HomePage'
 import { RevenuePage } from './pages/RevenuePage'
 import { ExpensesPage } from './pages/ExpensesPage'
@@ -9,7 +9,7 @@ import { CustomersPage } from './pages/CustomersPage'
 import { SettingsPage } from './pages/SettingsPage'
 
 const TABS = [
-  { key: 'home', label: 'خانه', icon: Home },
+  { key: 'home', label: 'خانه', icon: House },
   { key: 'revenue', label: 'درآمد', icon: TrendingUp },
   { key: 'expenses', label: 'هزینه', icon: TrendingDown },
   { key: 'customers', label: 'مشتریان', icon: Users },
@@ -19,13 +19,6 @@ const TABS = [
 
 function AppContent() {
   const [tab, setTab] = useState('home')
-  const [modalState, setModalState] = useState({ open: false, closer: null })
-  const [subPage, setSubPage] = useState(null)
-
-  // Register a modal open/close with the back handler
-  const registerModal = useCallback((open, closer) => {
-    setModalState({ open, closer })
-  }, [])
 
   // Android back button support via Capacitor App plugin
   useEffect(() => {
@@ -35,15 +28,9 @@ function AppContent() {
       try {
         const { App } = await import('@capacitor/app')
         listener = await App.addListener('backButton', () => {
-          // Priority: modal > sub-page > main tab
-          if (modalState.open && modalState.closer) {
-            modalState.closer()
-          } else if (subPage) {
-            setSubPage(null)
-          } else if (tab !== 'home') {
+          if (tab !== 'home') {
             setTab('home')
           } else {
-            // On home tab with nothing open — let the app exit
             App.exitApp()
           }
         })
@@ -57,10 +44,9 @@ function AppContent() {
     return () => {
       if (listener) listener.remove()
     }
-  }, [modalState, subPage, tab])
+  }, [tab])
 
   const navigate = (t) => {
-    setSubPage(null)
     setTab(t)
   }
 
@@ -82,7 +68,6 @@ function AppContent() {
         {renderPage()}
       </div>
 
-      {/* Bottom navigation */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-700"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}

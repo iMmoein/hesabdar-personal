@@ -54,7 +54,6 @@ export function ExpensesPage() {
   }
 
   const getAccount = (id) => data.accounts.find((a) => a.id === id)
-  const getBank = (id) => data.banks.find((b) => b.id === id)
   const getCategory = (id) => data.categories.find((c) => c.id === id)
   const getCustomer = (id) => data.customers.find((c) => c.id === id)
 
@@ -145,7 +144,6 @@ export function ExpensesPage() {
         </div>
       )}
 
-      {/* Expense form modal */}
       <Modal
         open={showForm}
         onClose={() => setShowForm(false)}
@@ -219,7 +217,6 @@ export function ExpensesPage() {
         </div>
       </Modal>
 
-      {/* Category form */}
       <Modal
         open={showCat}
         onClose={() => setShowCat(false)}

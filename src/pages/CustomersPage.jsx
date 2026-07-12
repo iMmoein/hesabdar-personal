@@ -13,9 +13,8 @@ export function CustomersPage() {
   const [name, setName] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState(null)
 
-  // Transaction form
   const [showTx, setShowTx] = useState(false)
-  const [txType, setTxType] = useState('expense') // 'expense' or 'revenue'
+  const [txType, setTxType] = useState('expense')
   const [txAmount, setTxAmount] = useState('')
   const [txAmountNum, setTxAmountNum] = useState(0)
   const [txDate, setTxDate] = useState(todayJalali())
@@ -23,7 +22,6 @@ export function CustomersPage() {
   const [txAccountId, setTxAccountId] = useState('')
   const [txCategory, setTxCategory] = useState('')
 
-  // Transaction detail modal
   const [detailTx, setDetailTx] = useState(null)
 
   const submitCustomer = () => {
@@ -53,10 +51,8 @@ export function CustomersPage() {
   }
 
   const getAccount = (id) => data.accounts.find((a) => a.id === id)
-  const getBank = (id) => data.banks.find((b) => b.id === id)
   const getCategory = (id) => data.categories.find((c) => c.id === id)
 
-  // Customer detail transactions
   const [detailFilter, setDetailFilter] = useState('all')
 
   const customerTransactions = useMemo(() => {
@@ -79,7 +75,6 @@ export function CustomersPage() {
     return revs - exps
   }, [selectedCustomer, data.revenues, data.expenses])
 
-  // Customer detail view
   if (selectedCustomer) {
     return (
       <div className="space-y-4 animate-fade">
@@ -159,7 +154,6 @@ export function CustomersPage() {
           })}
         </div>
 
-        {/* Transaction form modal */}
         <Modal
           open={showTx}
           onClose={() => setShowTx(false)}
@@ -225,7 +219,6 @@ export function CustomersPage() {
           </div>
         </Modal>
 
-        {/* Transaction detail modal */}
         <Modal
           open={!!detailTx}
           onClose={() => setDetailTx(null)}
@@ -269,7 +262,6 @@ export function CustomersPage() {
     )
   }
 
-  // Customer list view
   return (
     <div className="space-y-4 animate-fade">
       <div className="flex items-center justify-between">
@@ -320,7 +312,6 @@ export function CustomersPage() {
         })}
       </div>
 
-      {/* Customer form - first name only */}
       <Modal
         open={showForm}
         onClose={() => setShowForm(false)}

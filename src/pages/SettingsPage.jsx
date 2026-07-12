@@ -40,7 +40,6 @@ export function SettingsPage() {
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">پیکربندی برنامه</p>
       </div>
 
-      {/* Currency selector */}
       <div className="card p-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-brand-500/10 flex items-center justify-center text-brand-600">
@@ -67,7 +66,6 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* Theme toggle */}
       <div className="card p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300">
@@ -88,7 +86,6 @@ export function SettingsPage() {
         </button>
       </div>
 
-      {/* Backup & Restore */}
       <div className="card p-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
@@ -110,7 +107,6 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* Statistics */}
       <div className="card p-4">
         <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-3">آمار</h3>
         <div className="grid grid-cols-2 gap-3">
@@ -121,7 +117,6 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* Reset */}
       <div className="card p-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-600">

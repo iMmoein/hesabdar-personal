@@ -1,7 +1,7 @@
 // Jalali (Shamsi) date utilities — compact, no external deps
 
 const J_DAYS_IN_MONTH = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29]
-const G_DAYS_IN_MONTH = [31, 28, 31, 31, 31, 31, 31, 31, 30, 31, 30, 31]
+const G_DAYS_IN_MONTH = [31, 28, 31, 31, 31, 31, 31, 31, 31, 30, 31, 30, 31]
 
 const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
 
@@ -15,7 +15,6 @@ export function toEnglishDigits(str) {
 
 function div(a, b) { return Math.floor(a / b) }
 
-// Convert Gregorian to Jalali
 export function gregorianToJalali(gy, gm, gd) {
   const g_d_m = G_DAYS_IN_MONTH.slice()
   let jy
@@ -46,11 +45,10 @@ export function gregorianToJalali(gy, gm, gd) {
   return [jy, jm, jd]
 }
 
-// Convert Jalali to Gregorian
 export function jalaliToGregorian(jy, jm, jd) {
   let gy
   if (jy <= 979) {
-    gy = 621; jy += 0
+    gy = 621
   } else {
     gy = 1600; jy -= 979
   }
@@ -93,7 +91,6 @@ export function jalaliToGregorian(jy, jm, jd) {
   return [gy, gm, sal_d + 1]
 }
 
-// Convert ISO date string (YYYY-MM-DD) to Jalali parts {jy, jm, jd}
 export function isoToJalali(iso) {
   if (!iso) return null
   const [gy, gm, gd] = iso.split('-').map(Number)
@@ -101,7 +98,6 @@ export function isoToJalali(iso) {
   return { jy, jm, jd }
 }
 
-// Convert Jalali {jy, jm, jd} or "YYYY/MM/DD" string to ISO
 export function jalaliToISO(jalali) {
   let jy, jm, jd
   if (typeof jalali === 'string') {
@@ -159,7 +155,6 @@ export function currencyLabel(currency) {
   return currency === 'toman' ? 'تومان' : 'ریال'
 }
 
-// Filter helper: returns true if item date falls within filter range
 export function filterByDate(item, filter, customStart, customEnd) {
   if (filter === 'all') return true
   if (filter === 'custom') {

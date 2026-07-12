@@ -6,7 +6,7 @@ import { JalaliDatePicker } from '../components/JalaliDatePicker'
 import { AmountInput } from '../components/AmountInput'
 import { BankLogo } from '../components/BankLogo'
 import { FilterBar, filterByDate, formatFilterRange } from '../components/FilterBar'
-import { formatAmount, formatJalaliLong, isoToJalali, todayJalali, jalaliToISO, toPersianDigits, currencyLabel } from '../lib/jalali'
+import { formatAmount, formatJalaliLong, isoToJalali, todayJalali, jalaliToISO, currencyLabel } from '../lib/jalali'
 
 export function RevenuePage() {
   const { data, addRevenue, deleteRevenue, addAccount, currency } = useStore()
@@ -14,13 +14,11 @@ export function RevenuePage() {
   const [showAccount, setShowAccount] = useState(false)
   const [filter, setFilter] = useState('all')
 
-  // form state
   const [amount, setAmount] = useState('')
   const [amountNum, setAmountNum] = useState(0)
   const [accountId, setAccountId] = useState('')
   const [date, setDate] = useState(todayJalali())
 
-  // account form - bank only
   const [accBank, setAccBank] = useState(data.banks[0]?.id || 'melli')
   const [accCustomBank, setAccCustomBank] = useState('')
 
@@ -149,7 +147,6 @@ export function RevenuePage() {
         </div>
       )}
 
-      {/* Revenue form modal */}
       <Modal
         open={showForm}
         onClose={() => setShowForm(false)}
@@ -193,7 +190,6 @@ export function RevenuePage() {
         </div>
       </Modal>
 
-      {/* Account form modal - bank selection only */}
       <Modal
         open={showAccount}
         onClose={() => setShowAccount(false)}

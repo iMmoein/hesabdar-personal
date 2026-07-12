@@ -95,12 +95,10 @@ export function StoreProvider({ children }) {
   const [theme, setTheme] = useState(loadTheme)
   const [currency, setCurrency] = useState(loadCurrency)
 
-  // persist data
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
   }, [data])
 
-  // apply theme
   useEffect(() => {
     const root = document.documentElement
     if (theme === 'dark') root.classList.add('dark')
@@ -109,7 +107,6 @@ export function StoreProvider({ children }) {
     setData((d) => ({ ...d, settings: { ...d.settings, theme } }))
   }, [theme])
 
-  // persist currency
   useEffect(() => {
     localStorage.setItem(CURRENCY_KEY, currency)
   }, [currency])
@@ -126,7 +123,6 @@ export function StoreProvider({ children }) {
     setData((d) => (typeof updater === 'function' ? updater(d) : { ...d, ...updater }))
   }, [])
 
-  // Accounts
   const addAccount = useCallback((acc) => {
     const item = { id: 'acc_' + Date.now(), ...acc }
     setData((d) => ({ ...d, accounts: [...d.accounts, item] }))
@@ -136,7 +132,6 @@ export function StoreProvider({ children }) {
     setData((d) => ({ ...d, accounts: d.accounts.filter((a) => a.id !== id) }))
   }, [])
 
-  // Revenues
   const addRevenue = useCallback((rev) => {
     const item = { id: 'rev_' + Date.now(), createdAt: Date.now(), ...rev }
     setData((d) => ({ ...d, revenues: [...d.revenues, item] }))
@@ -146,7 +141,6 @@ export function StoreProvider({ children }) {
     setData((d) => ({ ...d, revenues: d.revenues.filter((r) => r.id !== id) }))
   }, [])
 
-  // Expenses
   const addExpense = useCallback((exp) => {
     const item = { id: 'exp_' + Date.now(), createdAt: Date.now(), ...exp }
     setData((d) => ({ ...d, expenses: [...d.expenses, item] }))
@@ -156,7 +150,6 @@ export function StoreProvider({ children }) {
     setData((d) => ({ ...d, expenses: d.expenses.filter((e) => e.id !== id) }))
   }, [])
 
-  // Categories
   const addCategory = useCallback((name) => {
     const item = { id: 'cat_' + Date.now(), name, type: 'expense', system: false }
     setData((d) => ({ ...d, categories: [...d.categories, item] }))
@@ -166,7 +159,6 @@ export function StoreProvider({ children }) {
     setData((d) => ({ ...d, categories: d.categories.filter((c) => c.id !== id) }))
   }, [])
 
-  // Bill names
   const addBillName = useCallback((name) => {
     setData((d) =>
       d.billNames.some((b) => b.name === name)
@@ -178,7 +170,6 @@ export function StoreProvider({ children }) {
     setData((d) => ({ ...d, billNames: d.billNames.filter((b) => b.id !== id) }))
   }, [])
 
-  // Customers
   const addCustomer = useCallback((name) => {
     const item = { id: 'cus_' + Date.now(), name, createdAt: Date.now() }
     setData((d) => ({ ...d, customers: [...d.customers, item] }))
@@ -188,7 +179,6 @@ export function StoreProvider({ children }) {
     setData((d) => ({ ...d, customers: d.customers.filter((c) => c.id !== id) }))
   }, [])
 
-  // Backup / Restore
   const exportData = useCallback(() => JSON.stringify(data, null, 2), [data])
   const importData = useCallback((json) => {
     const parsed = typeof json === 'string' ? JSON.parse(json) : json

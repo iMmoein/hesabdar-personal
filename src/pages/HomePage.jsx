@@ -11,7 +11,6 @@ export function HomePage({ onNavigate }) {
   const balance = totalRevenue - totalExpense
 
   const today = todayJalali()
-  const todayISO = `${today.jy}/${String(today.jm).padStart(2, '0')}/${String(today.jd).padStart(2, '0')}`
 
   const todayRevenues = data.revenues.filter((r) => {
     const j = isoToJalali(r.date)
@@ -29,7 +28,6 @@ export function HomePage({ onNavigate }) {
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{formatJalaliLong(today)}</p>
       </div>
 
-      {/* Balance card */}
       <div className="card p-5 bg-gradient-to-l from-brand-600 to-brand-700 text-white">
         <div className="flex items-center gap-2 mb-2">
           <Wallet size={20} />
@@ -41,7 +39,6 @@ export function HomePage({ onNavigate }) {
         <div className="text-sm opacity-75 mt-1">{balance >= 0 ? 'سود' : 'زیان'}</div>
       </div>
 
-      {/* Summary grid */}
       <div className="grid grid-cols-2 gap-3">
         <button onClick={() => onNavigate?.('revenue')} className="card p-4 text-right hover:shadow-md transition">
           <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 mb-2">
@@ -81,7 +78,6 @@ export function HomePage({ onNavigate }) {
         </button>
       </div>
 
-      {/* Today's activity */}
       <div className="card p-4">
         <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-3">امروز</h3>
         <div className="space-y-2">
