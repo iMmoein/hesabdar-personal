@@ -1,6 +1,8 @@
-// Jalali (Shamsi) date conversion utilities
-// Based on the well-tested algorithm by Roozbeh Pournader and Mohammad Toossi
-// Reference: https://jdf.scr.ir/
+// Jalali (Shamsi) date utilities
+// CRITICAL: All dates are stored as canonical Jalali strings "YYYY/MM/DD"
+// (e.g. "1405/04/15"). We NEVER use new Date("1405-04-15") which JS
+// interprets as Gregorian and causes wrong month/year/timezone bugs.
+// All parsing, sorting, filtering, and display reads the Jalali string directly.
 
 const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
 
@@ -12,52 +14,70 @@ export function toEnglishDigits(s) {
   return String(s).replace(/[۰-۹]/g, (d) => PERSIAN_DIGITS.indexOf(d))
 }
 
-// --- Jalali leap year calculation ---
-// Based on the 33-year cycle algorithm
+const J_MONTHS = [
+  'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+  'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+]
+
+// Days in each Jalali month (month 12 has 29, or 30 in leap years)
+const J_DAYS_IN_MONTH = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29]
+
+// --- Jalali leap year check (33-year cycle algorithm) ---
 export function isLeapJalali(jy) {
   const breaks = [-61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210, 1635, 2060, 2097, 2192, 2261, 2324, 2394, 2456, 3178]
-  let jp = breaks[0], jump = 0, leap = 0, n = 0
-
+  let jp = breaks[0], jump = 0, n = 0, leap = 0
   for (let i = 1; i <= breaks.length; i++) {
-    if (jy < breaks[i]) {
-      jp = breaks[i - 1]
-      jump = breaks[i] - jp
-      break
-    }
-    if (i === breaks.length) {
-      jp = breaks[breaks.length - 1]
-      jump = 0
-    }
+    if (jy < breaks[i]) { jp = breaks[i - 1]; jump = breaks[i] - jp; break }
+    if (i === breaks.length) { jp = breaks[breaks.length - 1]; jump = 0 }
   }
-
   n = jy - jp
-
   if (n < jump) {
-    if (jump - n < 6) {
-      n = n - jump + Math.floor((jump + 4) / 4) - Math.floor((jump + 3) / 4)
-    }
+    if (jump - n < 6) n = n - jump + Math.floor((jump + 4) / 4) - Math.floor((jump + 3) / 4)
     leap = (n % 4 === 0) ? 1 : 0
   } else {
-    if (n < jump + 4) {
-      leap = 0
-    } else {
-      leap = (n % 4 === 0 && n % 100 !== 0) ? 1 : 0
-    }
+    leap = (n < jump + 4) ? 0 : ((n % 4 === 0 && n % 100 !== 0) ? 1 : 0)
   }
-
   return leap === 1
 }
-
-// Days in each Jalali month
-const J_DAYS_IN_MONTH = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29]
 
 export function getDaysInJalaliMonth(jy, jm) {
   if (jm === 12 && isLeapJalali(jy)) return 30
   return J_DAYS_IN_MONTH[jm - 1]
 }
 
-// --- Gregorian to Jalali conversion ---
-// Uses the algorithm from the Persian Gulf library (jdf.scr.ir)
+// =====================================================
+// CRITICAL: Parse Jalali date string "YYYY/MM/DD" directly
+// NEVER use new Date() on a Jalali string.
+// =====================================================
+
+// Parse "1405/04/15" or "1405-04-15" → [1405, 4, 15]
+export function parseJalaliString(str) {
+  if (!str) return [0, 0, 0]
+  const parts = str.split(/[/-]/).map(Number)
+  return [parts[0] || 0, parts[1] || 0, parts[2] || 0]
+}
+
+// Build canonical Jalali string "YYYY/MM/DD"
+export function makeJalaliString(jy, jm, jd) {
+  return `${jy}/${String(jm).padStart(2, '0')}/${String(jd).padStart(2, '0')}`
+}
+
+// Today's Jalali date as [jy, jm, jd]
+export function todayJalali() {
+  const now = new Date()
+  const gy = now.getFullYear()
+  const gm = now.getMonth() + 1
+  const gd = now.getDate()
+  return gregorianToJalali(gy, gm, gd)
+}
+
+// Today's Jalali date as "YYYY/MM/DD" string
+export function todayJalaliString() {
+  const [jy, jm, jd] = todayJalali()
+  return makeJalaliString(jy, jm, jd)
+}
+
+// --- Gregorian to Jalali conversion (for computing today's date only) ---
 export function gregorianToJalali(gy, gm, gd) {
   const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
   let jy = (gy <= 1600) ? 0 : 979
@@ -70,17 +90,14 @@ export function gregorianToJalali(gy, gm, gd) {
     - 80
     + gd
     + g_d_m[gm - 1]
-
   jy += 33 * Math.floor(days / 12053)
   days %= 12053
   jy += 4 * Math.floor(days / 1461)
   days %= 1461
-
   if (days > 365) {
     jy += Math.floor((days - 1) / 365)
     days = (days - 1) % 365
   }
-
   let jm = 0
   for (let i = 0; i < 11 && days >= J_DAYS_IN_MONTH[i]; i++) {
     days -= J_DAYS_IN_MONTH[i]
@@ -88,102 +105,55 @@ export function gregorianToJalali(gy, gm, gd) {
   }
   jm++
   const jd = days + 1
-
   return [jy, jm, jd]
 }
 
-// --- Jalali to Gregorian conversion ---
+// --- Jalali to Gregorian (only for day-of-week calculation) ---
 export function jalaliToGregorian(jy, jm, jd) {
   let gy = (jy <= 979) ? 621 : 1600
   let days = 365 * (jy - (jy <= 979 ? 0 : 979))
     + 4 * Math.floor((jy - (jy <= 979 ? 0 : 979)) / 4)
     - Math.floor((jy - (jy <= 979 ? 0 : 979)) / 100)
     + Math.floor((jy - (jy <= 979 ? 0 : 979)) / 400)
-
-  for (let i = 0; i < jm - 1; i++) {
-    days += J_DAYS_IN_MONTH[i]
-  }
+  for (let i = 0; i < jm - 1; i++) days += J_DAYS_IN_MONTH[i]
   days += jd
-
   gy += 33 * Math.floor(days / 12053)
   days %= 12053
   gy += 4 * Math.floor(days / 1461)
   days %= 1461
-
   if (days > 365) {
     gy += Math.floor((days - 1) / 365)
     days = (days - 1) % 365
   }
-
   const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
   const sal_a = (gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)
-
   let gm = 0
   for (let i = 0; i < 13; i++) {
     const dim = g_d_m[i] + (i > 1 && sal_a ? 1 : 0)
-    if (days >= dim) {
-      days -= dim
-      gm++
-    } else {
-      break
-    }
+    if (days >= dim) { days -= dim; gm++ } else break
   }
   gm++
   const gd = days + 1
-
   return [gy, gm, gd]
 }
 
-// --- ISO date string (YYYY-MM-DD) to Jalali ---
-export function isoToJalali(iso) {
-  if (!iso) return [0, 0, 0]
-  const [y, m, d] = iso.split('-').map(Number)
-  return gregorianToJalali(y, m, d)
-}
-
-// --- Jalali to ISO date string (YYYY-MM-DD) ---
-export function jalaliToISO(jy, jm, jd) {
-  const [gy, gm, gd] = jalaliToGregorian(jy, jm, jd)
-  return `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`
-}
-
-// --- Today's Jalali date ---
-export function todayJalali() {
-  const now = new Date()
-  return gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate())
-}
-
-// --- Today's ISO date ---
-export function todayISO() {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-}
-
-const J_MONTHS = [
-  'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-  'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
-]
-
-// --- Format ISO date as "DD Month YYYY" in Persian ---
-export function formatJalaliLong(iso) {
-  if (!iso) return ''
-  const [jy, jm, jd] = isoToJalali(iso)
+// =====================================================
+// DISPLAY: Read Jalali string directly, format as "DD Month YYYY"
+// =====================================================
+export function formatJalaliLong(jalaliStr) {
+  if (!jalaliStr) return ''
+  const [jy, jm, jd] = parseJalaliString(jalaliStr)
   return `${toPersianDigits(jd)} ${J_MONTHS[jm - 1]} ${toPersianDigits(jy)}`
 }
 
-// --- Format ISO date as "DD Month" in Persian ---
-export function formatJalaliShort(iso) {
-  if (!iso) return ''
-  const [jy, jm, jd] = isoToJalali(iso)
+export function formatJalaliShort(jalaliStr) {
+  if (!jalaliStr) return ''
+  const [jy, jm, jd] = parseJalaliString(jalaliStr)
   return `${toPersianDigits(jd)} ${J_MONTHS[jm - 1]}`
 }
 
-// --- Format numbers with Persian digits ---
+// --- Format numbers ---
 export function formatRial(n) {
-  return toPersianDigits(Number(n || 0).toLocaleString('en-US'))
-}
-
-export function formatToman(n) {
   return toPersianDigits(Number(n || 0).toLocaleString('en-US'))
 }
 
@@ -196,28 +166,24 @@ export function currencyLabel(currency) {
   return currency === 'toman' ? 'تومان' : 'ریال'
 }
 
-// --- Filter items by date range (monthly/yearly/all) ---
-// For 'monthly': filters to the specified Jalali month and year
-// For 'yearly': filters to the specified Jalali year
-// For 'all': no filter
+// =====================================================
+// FILTERING: Parse Jalali string directly, compare Y/M/D
+// =====================================================
 export function filterByDate(items, filter, dateField = 'date', selectedMonth = null) {
   if (filter === 'all') return items
   const [ty, tm] = todayJalali()
   return items.filter((it) => {
     if (!it[dateField]) return false
-    const [jy, jm] = isoToJalali(it[dateField])
+    const [jy, jm] = parseJalaliString(it[dateField])
     if (filter === 'yearly') return jy === ty
     if (filter === 'monthly') {
-      if (selectedMonth != null) {
-        return jy === ty && jm === selectedMonth
-      }
+      if (selectedMonth != null) return jy === ty && jm === selectedMonth
       return jy === ty && jm === tm
     }
     return true
   })
 }
 
-// --- Format filter range label ---
 export function formatFilterRange(filter, selectedMonth = null) {
   if (filter === 'all') return 'همه موارد'
   const [ty, tm] = todayJalali()
@@ -229,34 +195,23 @@ export function formatFilterRange(filter, selectedMonth = null) {
   return ''
 }
 
-// --- Filter by explicit date range (for reports) ---
-export function filterByDateRange(items, startISO, endISO, dateField = 'date') {
-  if (!startISO && !endISO) return items
+// Filter by explicit Jalali date range (for reports)
+// startStr/endStr are "YYYY/MM/DD" Jalali strings
+export function filterByDateRange(items, startStr, endStr, dateField = 'date') {
+  if (!startStr && !endStr) return items
   return items.filter((it) => {
     if (!it[dateField]) return false
-    if (startISO && it[dateField] < startISO) return false
-    if (endISO && it[dateField] > endISO) return false
+    const d = it[dateField]
+    if (startStr && d < startStr) return false
+    if (endStr && d > endStr) return false
     return true
   })
 }
 
-// --- Get Jalali month name ---
-export function getMonthName(jm) {
-  return J_MONTHS[jm - 1]
-}
-
-// --- Get Jalali month name from ISO date ---
-export function getMonthNameFromISO(iso) {
-  const [, jm] = isoToJalali(iso)
-  return J_MONTHS[jm - 1]
-}
-
-// --- Get all 12 Persian month names ---
-export function getJalaliMonths() {
-  return J_MONTHS
-}
-
-// --- Sort items by date ---
+// =====================================================
+// SORTING: Compare Jalali strings directly (string comparison works
+// because "YYYY/MM/DD" format sorts lexicographically = chronologically)
+// =====================================================
 export function sortByDate(items, sortDir = 'desc', dateField = 'date') {
   const sorted = [...items].sort((a, b) => {
     const dateA = a[dateField] || ''
@@ -266,23 +221,50 @@ export function sortByDate(items, sortDir = 'desc', dateField = 'date') {
   return sortDir === 'desc' ? sorted : sorted.reverse()
 }
 
-// --- Get the day of the week for a Jalali date (0=Saturday, 6=Friday) ---
+// --- Month helpers ---
+export function getMonthName(jm) {
+  return J_MONTHS[jm - 1]
+}
+
+export function getMonthNameFromJalaliString(jalaliStr) {
+  const [, jm] = parseJalaliString(jalaliStr)
+  return J_MONTHS[jm - 1]
+}
+
+export function getJalaliMonths() {
+  return J_MONTHS
+}
+
+// --- Day of week for a Jalali date (0=Saturday ... 6=Friday) ---
 export function getJalaliWeekday(jy, jm, jd) {
   const [gy, gm, gd] = jalaliToGregorian(jy, jm, jd)
   const jsDay = new Date(gy, gm - 1, gd).getDay()
-  // JS getDay: 0=Sunday, 1=Monday, ..., 6=Saturday
-  // Persian week starts on Saturday (0) and ends on Friday (6)
-  // Convert: JS Sunday(0) -> Persian Saturday(0), ..., JS Saturday(6) -> Persian Friday(6)
-  // Actually: Persian: Sat=0, Sun=1, Mon=2, Tue=3, Wed=4, Thu=5, Fri=6
-  // JS: Sun=0, Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
-  // So: JS Sat(6) -> Persian Sat(0), JS Sun(0) -> Persian Sun(1), ..., JS Fri(5) -> Persian Fri(6)
+  // JS: 0=Sunday...6=Saturday → Persian: 0=Saturday...6=Friday
   return (jsDay + 1) % 7
 }
 
-// --- Get the start and end ISO dates for a Jalali month ---
+// --- Get start/end Jalali strings for a month ---
 export function getJalaliMonthRange(jy, jm) {
-  const startISO = jalaliToISO(jy, jm, 1)
+  const startStr = makeJalaliString(jy, jm, 1)
   const lastDay = getDaysInJalaliMonth(jy, jm)
-  const endISO = jalaliToISO(jy, jm, lastDay)
-  return { startISO, endISO }
+  const endStr = makeJalaliString(jy, jm, lastDay)
+  return { startStr, endStr }
+}
+
+// --- Safe migration: convert old ISO "YYYY-MM-DD" dates to Jalali "YYYY/MM/DD" ---
+// This only runs once and does not delete any data.
+export function migrateOldDates(items, dateField = 'date') {
+  return items.map((it) => {
+    const d = it[dateField]
+    if (!d) return it
+    // Already in Jalali "YYYY/MM/DD" format
+    if (/^\d{4}\/\d{2}\/\d{2}$/.test(d)) return it
+    // Old ISO format "YYYY-MM-DD" (Gregorian) → convert to Jalali
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      const [gy, gm, gd] = d.split('-').map(Number)
+      const [jy, jm, jd] = gregorianToJalali(gy, gm, gd)
+      return { ...it, [dateField]: makeJalaliString(jy, jm, jd) }
+    }
+    return it
+  })
 }

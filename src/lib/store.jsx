@@ -1,12 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { todayISO, todayJalali } from './jalali'
+import { todayJalaliString, migrateOldDates } from './jalali'
 
-const STORAGE_KEY = 'hesabdar_data_v1'
+const STORAGE_KEY = 'hesabdar_data_v2'
 const THEME_KEY = 'hesabdar_theme'
 const CURRENCY_KEY = 'hesabdar_currency'
 
-// Bank logo paths use RELATIVE paths (no leading slash) so they work in
-// Capacitor's file:// WebView. Vite's base: './' makes all asset URLs relative.
+// Bank logo paths use RELATIVE paths (no leading slash) for Capacitor file:// WebView
 export const DEFAULT_BANKS = [
   { id: 'melli', name: 'بانک ملی ایران', color: '#1976d2', short: 'م', logo: 'banks/melli.svg' },
   { id: 'mellat', name: 'بانک ملت', color: '#d4af37', short: 'م', logo: 'banks/mellat.svg' },
@@ -49,6 +48,14 @@ export const DEFAULT_CATEGORIES = [
   { id: 'bills', name: 'قبوض', type: 'expense' }
 ]
 
+// Default bill names that cannot be deleted
+export const DEFAULT_BILL_NAMES = [
+  'قبض آب',
+  'قبض برق',
+  'قبض گاز',
+  'قبض تلفن'
+]
+
 function defaultData() {
   return {
     accounts: [],
@@ -63,9 +70,31 @@ function defaultData() {
 function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return defaultData()
+    if (!raw) {
+      // Try migrating from old key (v1)
+      const oldRaw = localStorage.getItem('hesabdar_data_v1')
+      if (oldRaw) {
+        const oldParsed = JSON.parse(oldRaw)
+        const migrated = {
+          ...defaultData(),
+          ...oldParsed,
+          revenues: migrateOldDates(oldParsed.revenues || []),
+          expenses: migrateOldDates(oldParsed.expenses || [])
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated))
+        return migrated
+      }
+      return defaultData()
+    }
     const parsed = JSON.parse(raw)
-    return { ...defaultData(), ...parsed }
+    // Safe migration of any old ISO dates
+    const migrated = {
+      ...defaultData(),
+      ...parsed,
+      revenues: migrateOldDates(parsed.revenues || []),
+      expenses: migrateOldDates(parsed.expenses || [])
+    }
+    return migrated
   } catch {
     return defaultData()
   }
@@ -94,7 +123,7 @@ export function StoreProvider({ children }) {
   // Accounts
   const addAccount = (account) => {
     const id = `acc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-    const newAcc = { id, createdAt: todayISO(), ...account }
+    const newAcc = { id, createdAt: todayJalaliString(), ...account }
     setData((d) => ({ ...d, accounts: [...d.accounts, newAcc] }))
     return newAcc
   }
@@ -103,30 +132,24 @@ export function StoreProvider({ children }) {
   // Revenues
   const addRevenue = (rev) => {
     const id = `rev_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-    const newRev = { id, createdAt: todayISO(), ...rev }
+    const newRev = { id, createdAt: todayJalaliString(), ...rev }
     setData((d) => ({ ...d, revenues: [...d.revenues, newRev] }))
     return newRev
   }
   const updateRevenue = (id, updates) => {
-    setData((d) => ({
-      ...d,
-      revenues: d.revenues.map((r) => (r.id === id ? { ...r, ...updates } : r))
-    }))
+    setData((d) => ({ ...d, revenues: d.revenues.map((r) => (r.id === id ? { ...r, ...updates } : r)) }))
   }
   const deleteRevenue = (id) => setData((d) => ({ ...d, revenues: d.revenues.filter((r) => r.id !== id) }))
 
   // Expenses
   const addExpense = (exp) => {
     const id = `exp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-    const newExp = { id, createdAt: todayISO(), ...exp }
+    const newExp = { id, createdAt: todayJalaliString(), ...exp }
     setData((d) => ({ ...d, expenses: [...d.expenses, newExp] }))
     return newExp
   }
   const updateExpense = (id, updates) => {
-    setData((d) => ({
-      ...d,
-      expenses: d.expenses.map((e) => (e.id === id ? { ...e, ...updates } : e))
-    }))
+    setData((d) => ({ ...d, expenses: d.expenses.map((e) => (e.id === id ? { ...e, ...updates } : e)) }))
   }
   const deleteExpense = (id) => setData((d) => ({ ...d, expenses: d.expenses.filter((e) => e.id !== id) }))
 
@@ -139,7 +162,7 @@ export function StoreProvider({ children }) {
   }
   const deleteCategory = (id) => setData((d) => ({ ...d, categories: d.categories.filter((c) => c.id !== id) }))
 
-  // Bill names
+  // Bill names — custom bills only; default bills are rendered separately
   const addBillName = (name) => {
     const id = `bill_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newBill = { id, name }
@@ -148,27 +171,28 @@ export function StoreProvider({ children }) {
   }
   const deleteBillName = (id) => setData((d) => ({ ...d, billNames: d.billNames.filter((b) => b.id !== id) }))
 
+  // Check if bill name already exists (default or custom)
+  const isBillNameDuplicate = (name) => {
+    const trimmed = name.trim()
+    if (DEFAULT_BILL_NAMES.includes(trimmed)) return true
+    return data.billNames.some((b) => b.name.trim() === trimmed)
+  }
+
   // Customers
   const addCustomer = (cust) => {
     const id = `cus_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-    const newCust = { id, createdAt: todayISO(), ...cust }
+    const newCust = { id, createdAt: todayJalaliString(), ...cust }
     setData((d) => ({ ...d, customers: [...d.customers, newCust] }))
     return newCust
   }
   const updateCustomer = (id, updates) => {
-    setData((d) => ({
-      ...d,
-      customers: d.customers.map((c) => (c.id === id ? { ...c, ...updates } : c))
-    }))
+    setData((d) => ({ ...d, customers: d.customers.map((c) => (c.id === id ? { ...c, ...updates } : c)) }))
   }
   const deleteCustomer = (id) => setData((d) => ({ ...d, customers: d.customers.filter((c) => c.id !== id) }))
 
-  // Check if customer name already exists
   const isCustomerNameDuplicate = (name, excludeId = null) => {
     const trimmed = name.trim()
-    return data.customers.some(
-      (c) => c.name.trim() === trimmed && c.id !== excludeId
-    )
+    return data.customers.some((c) => c.name.trim() === trimmed && c.id !== excludeId)
   }
 
   // Export/Import/Reset
@@ -177,8 +201,7 @@ export function StoreProvider({ children }) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    const [jy, jm, jd] = todayJalali()
-    a.download = `hesabdar-backup-${jy}-${jm}-${jd}.json`
+    a.download = `hesabdar-backup.json`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -186,7 +209,13 @@ export function StoreProvider({ children }) {
   const importData = (jsonString) => {
     try {
       const parsed = JSON.parse(jsonString)
-      setData({ ...defaultData(), ...parsed })
+      const migrated = {
+        ...defaultData(),
+        ...parsed,
+        revenues: migrateOldDates(parsed.revenues || []),
+        expenses: migrateOldDates(parsed.expenses || [])
+      }
+      setData(migrated)
       return true
     } catch {
       return false
@@ -203,7 +232,7 @@ export function StoreProvider({ children }) {
     addRevenue, updateRevenue, deleteRevenue,
     addExpense, updateExpense, deleteExpense,
     addCategory, deleteCategory,
-    addBillName, deleteBillName,
+    addBillName, deleteBillName, isBillNameDuplicate,
     addCustomer, updateCustomer, deleteCustomer, isCustomerNameDuplicate,
     exportData, importData, resetData
   }

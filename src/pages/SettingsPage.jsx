@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
-import { Moon, Sun, Download, Upload, Trash2, Coins, BarChart3, TrendingUp, TrendingDown, Users } from 'lucide-react'
+import { Moon, Sun, Download, Upload, Trash2, Coins, BarChart3, TrendingUp, TrendingDown, Users, User } from 'lucide-react'
 import { useStore } from '../lib/store'
-import { formatAmount, toPersianDigits } from '../lib/jalali'
+import { formatAmount, toPersianDigits, currencyLabel } from '../lib/jalali'
 import Modal from '../components/Modal'
 
 export default function SettingsPage() {
@@ -12,6 +12,7 @@ export default function SettingsPage() {
 
   const totalRev = revenues.reduce((s, r) => s + Number(r.amount || 0), 0)
   const totalExp = expenses.reduce((s, e) => s + Number(e.amount || 0), 0)
+  const netResult = totalRev - totalExp
 
   const handleImport = (e) => {
     const file = e.target.files[0]
@@ -26,34 +27,48 @@ export default function SettingsPage() {
     e.target.value = ''
   }
 
+  // Net result styling
+  let netLabel = 'سر به سر'
+  let netAmount = 0
+  let netColor = 'text-slate-500 dark:text-slate-400'
+  let netBg = 'bg-slate-50 dark:bg-slate-700/30'
+
+  if (netResult > 0) {
+    netLabel = 'سود'
+    netAmount = netResult
+    netColor = 'text-green-600 dark:text-green-400'
+    netBg = 'bg-green-50 dark:bg-green-900/20'
+  } else if (netResult < 0) {
+    netLabel = 'زیان'
+    netAmount = Math.abs(netResult)
+    netColor = 'text-red-600 dark:text-red-400'
+    netBg = 'bg-red-50 dark:bg-red-900/20'
+  }
+
   return (
     <div className="px-4 pt-4 pb-28 space-y-4">
       <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">تنظیمات</h1>
 
+      {/* Creator name card */}
+      <div className="card p-4 flex items-center gap-3">
+        <div className="p-2.5 rounded-xl bg-brand-100 dark:bg-brand-900/40">
+          <User size={22} className="text-brand-600 dark:text-brand-400" />
+        </div>
+        <div>
+          <p className="text-sm text-slate-400">سازنده</p>
+          <p className="font-bold text-slate-800 dark:text-slate-100">غیب اللهی</p>
+        </div>
+      </div>
+
       <div className="card p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-brand-100 dark:bg-brand-900/40">
-              <Coins size={20} className="text-brand-600 dark:text-brand-400" />
-            </div>
-            <div>
-              <p className="font-semibold text-slate-800 dark:text-slate-100">واحد پول</p>
-              <p className="text-xs text-slate-400">ریال یا تومان</p>
-            </div>
+            <div className="p-2 rounded-xl bg-brand-100 dark:bg-brand-900/40"><Coins size={20} className="text-brand-600 dark:text-brand-400" /></div>
+            <div><p className="font-semibold text-slate-800 dark:text-slate-100">واحد پول</p><p className="text-xs text-slate-400">ریال یا تومان</p></div>
           </div>
           <div className="flex bg-slate-100 dark:bg-slate-700 rounded-xl p-1">
-            <button
-              onClick={() => currency !== 'rial' && toggleCurrency()}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${currency === 'rial' ? 'bg-white dark:bg-slate-800 text-brand-600 shadow-soft' : 'text-slate-500'}`}
-            >
-              ریال
-            </button>
-            <button
-              onClick={() => currency !== 'toman' && toggleCurrency()}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${currency === 'toman' ? 'bg-white dark:bg-slate-800 text-brand-600 shadow-soft' : 'text-slate-500'}`}
-            >
-              تومان
-            </button>
+            <button onClick={() => currency !== 'rial' && toggleCurrency()} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${currency === 'rial' ? 'bg-white dark:bg-slate-800 text-brand-600 shadow-soft' : 'text-slate-500'}`}>ریال</button>
+            <button onClick={() => currency !== 'toman' && toggleCurrency()} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${currency === 'toman' ? 'bg-white dark:bg-slate-800 text-brand-600 shadow-soft' : 'text-slate-500'}`}>تومان</button>
           </div>
         </div>
       </div>
@@ -61,26 +76,16 @@ export default function SettingsPage() {
       <div className="card p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/40">
-              {theme === 'dark' ? <Moon size={20} className="text-amber-500" /> : <Sun size={20} className="text-amber-500" />}
-            </div>
-            <div>
-              <p className="font-semibold text-slate-800 dark:text-slate-100">حالت نمایش</p>
-              <p className="text-xs text-slate-400">{theme === 'dark' ? 'تاریک' : 'روشن'}</p>
-            </div>
+            <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/40">{theme === 'dark' ? <Moon size={20} className="text-amber-500" /> : <Sun size={20} className="text-amber-500" />}</div>
+            <div><p className="font-semibold text-slate-800 dark:text-slate-100">حالت نمایش</p><p className="text-xs text-slate-400">{theme === 'dark' ? 'تاریک' : 'روشن'}</p></div>
           </div>
-          <button onClick={toggleTheme} className="btn-ghost">
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            تغییر حالت
-          </button>
+          <button onClick={toggleTheme} className="btn-ghost">{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}تغییر حالت</button>
         </div>
       </div>
 
       <div className="card p-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-900/40">
-            <BarChart3 size={20} className="text-purple-600 dark:text-purple-400" />
-          </div>
+          <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-900/40"><BarChart3 size={20} className="text-purple-600 dark:text-purple-400" /></div>
           <p className="font-semibold text-slate-800 dark:text-slate-100">آمار کلی</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -89,34 +94,36 @@ export default function SettingsPage() {
           <StatCard icon={Users} label="مشتریان" value={toPersianDigits(customers.length)} color="blue" />
           <StatCard icon={BarChart3} label="حساب‌ها" value={toPersianDigits(accounts.length)} color="purple" />
         </div>
+        {/* Net profit/loss card */}
+        <div className={`mt-3 rounded-xl p-4 ${netBg}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BarChart3 size={18} className={netColor} />
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">خالص سود و زیان</p>
+            </div>
+            <div className="text-left">
+              <p className={`text-xs font-medium ${netColor}`}>{netLabel}</p>
+              <p className={`font-bold text-lg ${netColor}`}>{formatAmount(netAmount, currency)}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="card p-4 space-y-3">
         <p className="font-semibold text-slate-800 dark:text-slate-100">پشتیبان‌گیری</p>
-        <button onClick={exportData} className="btn-primary w-full">
-          <Download size={18} /> خروجی JSON
-        </button>
-        <button onClick={() => fileRef.current?.click()} className="btn-ghost w-full">
-          <Upload size={18} /> بازیابی از فایل
-        </button>
+        <button onClick={exportData} className="btn-primary w-full"><Download size={18} /> خروجی JSON</button>
+        <button onClick={() => fileRef.current?.click()} className="btn-ghost w-full"><Upload size={18} /> بازیابی از فایل</button>
         <input ref={fileRef} type="file" accept="application/json" onChange={handleImport} className="hidden" />
         {importMsg && <p className="text-sm text-center text-brand-600 dark:text-brand-400">{importMsg}</p>}
       </div>
 
       <div className="card p-4">
-        <button onClick={() => setShowReset(true)} className="btn-danger w-full">
-          <Trash2 size={18} /> پاک کردن همه داده‌ها
-        </button>
+        <button onClick={() => setShowReset(true)} className="btn-danger w-full"><Trash2 size={18} /> پاک کردن همه داده‌ها</button>
       </div>
 
       <p className="text-center text-xs text-slate-400 pt-2">حسابدار شخصی — نسخه ۱.۰.۰</p>
 
-      <Modal open={showReset} onClose={() => setShowReset(false)} title="تایید پاک کردن" footer={
-        <div className="flex gap-2">
-          <button onClick={() => setShowReset(false)} className="btn-ghost flex-1">انصراف</button>
-          <button onClick={() => { resetData(); setShowReset(false) }} className="btn-danger flex-1">پاک کردن</button>
-        </div>
-      }>
+      <Modal open={showReset} onClose={() => setShowReset(false)} title="تایید پاک کردن" footer={<div className="flex gap-2"><button onClick={() => setShowReset(false)} className="btn-ghost flex-1">انصراف</button><button onClick={() => { resetData(); setShowReset(false) }} className="btn-danger flex-1">پاک کردن</button></div>}>
         <p className="text-slate-600 dark:text-slate-300">آیا مطمئن هستید؟ همه داده‌ها (درآمدها، هزینه‌ها، مشتریان، حساب‌ها) پاک خواهند شد. این عمل قابل بازگشت نیست.</p>
       </Modal>
     </div>

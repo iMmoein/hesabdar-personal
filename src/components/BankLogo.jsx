@@ -1,10 +1,6 @@
 import { useState } from 'react'
 import { Landmark } from 'lucide-react'
 
-// Resolves a bank logo path relative to the app base URL.
-// In Capacitor's file:// WebView, absolute paths (starting with /) don't work.
-// Vite's base: './' makes import.meta.env.BASE_URL = './', so we prepend it
-// to the relative 'banks/xxx.svg' path to get a fully relative URL.
 function resolveLogo(logo) {
   if (!logo) return ''
   if (/^(https?:|file:|data:)/.test(logo)) return logo
@@ -18,10 +14,7 @@ export default function BankLogo({ bank, size = 40 }) {
   if (!bank || !bank.logo || bank.id === 'other' || imgError) {
     if (bank && bank.id === 'other') {
       return (
-        <div
-          className="flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300"
-          style={{ width: size, height: size }}
-        >
+        <div className="flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300 shrink-0" style={{ width: size, height: size }}>
           <Landmark size={size * 0.5} />
         </div>
       )
@@ -30,40 +23,21 @@ export default function BankLogo({ bank, size = 40 }) {
       const color = bank.color || '#607d8b'
       const darker = shadeColor(color, -30)
       return (
-        <div
-          className="flex items-center justify-center rounded-full font-bold text-white shadow-sm shrink-0"
-          style={{
-            width: size,
-            height: size,
-            fontSize: size * 0.42,
-            background: `linear-gradient(135deg, ${color}, ${darker})`
-          }}
-        >
+        <div className="flex items-center justify-center rounded-full font-bold text-white shadow-sm shrink-0" style={{ width: size, height: size, fontSize: size * 0.42, background: `linear-gradient(135deg, ${color}, ${darker})` }}>
           {bank.short || bank.name?.charAt(0) || '؟'}
         </div>
       )
     }
     return (
-      <div
-        className="flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-400"
-        style={{ width: size, height: size }}
-      >
+      <div className="flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-400 shrink-0" style={{ width: size, height: size }}>
         <Landmark size={size * 0.5} />
       </div>
     )
   }
 
   return (
-    <div
-      className="flex items-center justify-center rounded-full dark:bg-white dark:p-1 shrink-0"
-      style={{ width: size, height: size }}
-    >
-      <img
-        src={resolveLogo(bank.logo)}
-        alt={bank.name}
-        className="w-full h-full object-contain"
-        onError={() => setImgError(true)}
-      />
+    <div className="flex items-center justify-center rounded-full dark:bg-white dark:p-1 shrink-0" style={{ width: size, height: size }}>
+      <img src={resolveLogo(bank.logo)} alt={bank.name} className="w-full h-full object-contain" onError={() => setImgError(true)} />
     </div>
   )
 }

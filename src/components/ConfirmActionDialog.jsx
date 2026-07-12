@@ -1,12 +1,9 @@
 import { useEffect } from 'react'
 
-// Generic confirmation dialog for edit/delete actions
 export default function ConfirmActionDialog({ open, onConfirm, onCancel, title, message, confirmLabel = 'تایید', confirmClass = 'btn-primary' }) {
   useEffect(() => {
     if (!open) return
-    const handler = (e) => {
-      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCancel() }
-    }
+    const handler = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCancel() } }
     window.addEventListener('keydown', handler, true)
     return () => window.removeEventListener('keydown', handler, true)
   }, [open, onCancel])
