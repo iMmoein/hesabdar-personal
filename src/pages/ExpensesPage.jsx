@@ -205,13 +205,7 @@ export function ExpensesPage() {
             </div>
             <div>
               <label className="label">ساعت</label>
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="input"
-                dir="ltr"
-              />
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="input" dir="ltr" />
             </div>
           </div>
         </div>

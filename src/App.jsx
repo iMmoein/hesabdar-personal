@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { House, TrendingUp, TrendingDown, Users, BarChart3, Settings } from 'lucide-react'
 import { StoreProvider } from './lib/store'
 import { HomePage } from './pages/HomePage'
@@ -20,7 +20,6 @@ const TABS = [
 function AppContent() {
   const [tab, setTab] = useState('home')
 
-  // Android back button support via Capacitor App plugin
   useEffect(() => {
     let listener
 
@@ -46,9 +45,7 @@ function AppContent() {
     }
   }, [tab])
 
-  const navigate = (t) => {
-    setTab(t)
-  }
+  const navigate = (t) => setTab(t)
 
   const renderPage = () => {
     switch (tab) {

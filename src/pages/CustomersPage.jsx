@@ -4,7 +4,7 @@ import { useStore } from '../lib/store'
 import { Modal } from '../components/Modal'
 import { JalaliDatePicker } from '../components/JalaliDatePicker'
 import { AmountInput } from '../components/AmountInput'
-import { FilterBar, filterByDate, formatFilterRange } from '../components/FilterBar'
+import { FilterBar, filterByDate } from '../components/FilterBar'
 import { formatAmount, formatJalaliLong, isoToJalali, todayJalali, jalaliToISO, toPersianDigits, currencyLabel } from '../lib/jalali'
 
 export function CustomersPage() {
@@ -23,6 +23,7 @@ export function CustomersPage() {
   const [txCategory, setTxCategory] = useState('')
 
   const [detailTx, setDetailTx] = useState(null)
+  const [detailFilter, setDetailFilter] = useState('all')
 
   const submitCustomer = () => {
     if (!name.trim()) return
@@ -41,11 +42,8 @@ export function CustomersPage() {
       time: txTime || null,
       categoryId: txType === 'expense' ? (txCategory || null) : null,
     }
-    if (txType === 'expense') {
-      addExpense(payload)
-    } else {
-      addRevenue(payload)
-    }
+    if (txType === 'expense') addExpense(payload)
+    else addRevenue(payload)
     setTxAmount(''); setTxAmountNum(0); setTxDate(todayJalali()); setTxTime(''); setTxAccountId(''); setTxCategory('')
     setShowTx(false)
   }
@@ -53,19 +51,11 @@ export function CustomersPage() {
   const getAccount = (id) => data.accounts.find((a) => a.id === id)
   const getCategory = (id) => data.categories.find((c) => c.id === id)
 
-  const [detailFilter, setDetailFilter] = useState('all')
-
   const customerTransactions = useMemo(() => {
     if (!selectedCustomer) return []
-    const revs = data.revenues
-      .filter((r) => r.customerId === selectedCustomer.id)
-      .map((r) => ({ ...r, txType: 'revenue' }))
-    const exps = data.expenses
-      .filter((e) => e.customerId === selectedCustomer.id)
-      .map((e) => ({ ...e, txType: 'expense' }))
-    return [...revs, ...exps]
-      .filter((t) => filterByDate(t, detailFilter))
-      .sort((a, b) => b.date.localeCompare(a.date))
+    const revs = data.revenues.filter((r) => r.customerId === selectedCustomer.id).map((r) => ({ ...r, txType: 'revenue' }))
+    const exps = data.expenses.filter((e) => e.customerId === selectedCustomer.id).map((e) => ({ ...e, txType: 'expense' }))
+    return [...revs, ...exps].filter((t) => filterByDate(t, detailFilter)).sort((a, b) => b.date.localeCompare(a.date))
   }, [selectedCustomer, data.revenues, data.expenses, detailFilter])
 
   const customerBalance = useMemo(() => {
@@ -107,10 +97,7 @@ export function CustomersPage() {
 
         <div className="flex items-center justify-between">
           <FilterBar value={detailFilter} onChange={setDetailFilter} />
-          <button
-            onClick={() => { setTxType('expense'); setShowTx(true) }}
-            className="btn-primary whitespace-nowrap"
-          >
+          <button onClick={() => { setTxType('expense'); setShowTx(true) }} className="btn-primary whitespace-nowrap">
             <Plus size={16} /> تراکنش
           </button>
         </div>
@@ -124,7 +111,6 @@ export function CustomersPage() {
           )}
           {customerTransactions.map((t) => {
             const acc = getAccount(t.accountId)
-            const cat = getCategory(t.categoryId)
             const isRev = t.txType === 'revenue'
             return (
               <button
@@ -167,18 +153,8 @@ export function CustomersPage() {
         >
           <div className="space-y-4">
             <div className="flex gap-2">
-              <button
-                onClick={() => setTxType('expense')}
-                className={`flex-1 chip ${txType === 'expense' ? 'bg-rose-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
-              >
-                پرداختی
-              </button>
-              <button
-                onClick={() => setTxType('revenue')}
-                className={`flex-1 chip ${txType === 'revenue' ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
-              >
-                دریافتی
-              </button>
+              <button onClick={() => setTxType('expense')} className={`flex-1 chip ${txType === 'expense' ? 'bg-rose-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>پرداختی</button>
+              <button onClick={() => setTxType('revenue')} className={`flex-1 chip ${txType === 'revenue' ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>دریافتی</button>
             </div>
             <div>
               <label className="label">مبلغ ({currencyLabel(currency)})</label>
@@ -200,9 +176,7 @@ export function CustomersPage() {
                 <label className="label">دسته بندی</label>
                 <select value={txCategory} onChange={(e) => setTxCategory(e.target.value)} className="input">
                   <option value="">بدون دسته</option>
-                  {data.categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
+                  {data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
             )}
@@ -224,9 +198,7 @@ export function CustomersPage() {
           onClose={() => setDetailTx(null)}
           title="جزئیات تراکنش"
           size="sm"
-          footer={
-            <button onClick={() => setDetailTx(null)} className="btn-primary w-full">بستن</button>
-          }
+          footer={<button onClick={() => setDetailTx(null)} className="btn-primary w-full">بستن</button>}
         >
           {detailTx && (
             <div className="space-y-3">
@@ -245,15 +217,9 @@ export function CustomersPage() {
                 <DetailRow icon={<Wallet size={16} />} label="حساب" value={getAccount(detailTx.accountId)?.name || 'بدون حساب'} />
                 <DetailRow icon={<Tag size={16} />} label="دسته بندی" value={getCategory(detailTx.categoryId)?.name || 'بدون دسته'} />
                 <DetailRow icon={<Receipt size={16} />} label="تاریخ" value={formatJalaliLong(isoToJalali(detailTx.date))} />
-                {detailTx.time && (
-                  <DetailRow icon={<Clock size={16} />} label="ساعت" value={toPersianDigits(detailTx.time)} />
-                )}
-                {detailTx.description && (
-                  <DetailRow icon={<Receipt size={16} />} label="توضیحات" value={detailTx.description} />
-                )}
-                {detailTx.billName && (
-                  <DetailRow icon={<Receipt size={16} />} label="نام قبض" value={detailTx.billName} />
-                )}
+                {detailTx.time && <DetailRow icon={<Clock size={16} />} label="ساعت" value={toPersianDigits(detailTx.time)} />}
+                {detailTx.description && <DetailRow icon={<Receipt size={16} />} label="توضیحات" value={detailTx.description} />}
+                {detailTx.billName && <DetailRow icon={<Receipt size={16} />} label="نام قبض" value={detailTx.billName} />}
               </div>
             </div>
           )}
@@ -287,10 +253,7 @@ export function CustomersPage() {
           const balance = revs - exps
           return (
             <div key={c.id} className="card p-3.5 flex items-center gap-3 animate-fade">
-              <button
-                onClick={() => setSelectedCustomer(c)}
-                className="flex items-center gap-3 flex-1 min-w-0 text-right"
-              >
+              <button onClick={() => setSelectedCustomer(c)} className="flex items-center gap-3 flex-1 min-w-0 text-right">
                 <div className="w-11 h-11 rounded-2xl bg-brand-500/10 flex items-center justify-center text-brand-600 shrink-0">
                   <User size={22} />
                 </div>

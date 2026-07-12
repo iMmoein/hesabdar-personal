@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { BarChart3, TrendingUp, TrendingDown, Wallet } from 'lucide-react'
 import { useStore } from '../lib/store'
-import { FilterBar, formatFilterRange } from '../components/FilterBar'
+import { FilterBar } from '../components/FilterBar'
 import { JalaliDatePicker } from '../components/JalaliDatePicker'
 import { formatAmount, isoToJalali, todayJalali, jalaliToISO, currencyLabel, toPersianDigits } from '../lib/jalali'
 
@@ -15,22 +15,13 @@ export function ReportsPage() {
     const today = todayJalali()
     if (filter === 'all') return { start: null, end: null }
     if (filter === 'monthly') {
-      return {
-        start: jalaliToISO({ jy: today.jy, jm: today.jm, jd: 1 }),
-        end: jalaliToISO({ jy: today.jy, jm: today.jm, jd: 30 }),
-      }
+      return { start: jalaliToISO({ jy: today.jy, jm: today.jm, jd: 1 }), end: jalaliToISO({ jy: today.jy, jm: today.jm, jd: 30 }) }
     }
     if (filter === 'yearly') {
-      return {
-        start: jalaliToISO({ jy: today.jy, jm: 1, jd: 1 }),
-        end: jalaliToISO({ jy: today.jy, jm: 12, jd: 30 }),
-      }
+      return { start: jalaliToISO({ jy: today.jy, jm: 1, jd: 1 }), end: jalaliToISO({ jy: today.jy, jm: 12, jd: 30 }) }
     }
     if (filter === 'custom') {
-      return {
-        start: customStart ? jalaliToISO(customStart) : null,
-        end: customEnd ? jalaliToISO(customEnd) : null,
-      }
+      return { start: customStart ? jalaliToISO(customStart) : null, end: customEnd ? jalaliToISO(customEnd) : null }
     }
     return { start: null, end: null }
   }, [filter, customStart, customEnd])
@@ -68,15 +59,11 @@ export function ReportsPage() {
       const dayExp = new Array(daysInMonth).fill(0)
       filteredRevenues.forEach((r) => {
         const j = isoToJalali(r.date)
-        if (j && j.jy === today.jy && j.jm === today.jm) {
-          dayRev[j.jd - 1] += Number(r.amount)
-        }
+        if (j && j.jy === today.jy && j.jm === today.jm) dayRev[j.jd - 1] += Number(r.amount)
       })
       filteredExpenses.forEach((e) => {
         const j = isoToJalali(e.date)
-        if (j && j.jy === today.jy && j.jm === today.jm) {
-          dayExp[j.jd - 1] += Number(e.amount)
-        }
+        if (j && j.jy === today.jy && j.jm === today.jm) dayExp[j.jd - 1] += Number(e.amount)
       })
       const buckets = 6
       const revBuckets = new Array(buckets).fill(0)
@@ -104,11 +91,7 @@ export function ReportsPage() {
         const j = isoToJalali(d)
         return j ? `${toPersianDigits(j.jm)}/${toPersianDigits(j.jd)}` : d
       })
-      return {
-        labels,
-        revBuckets: allDates.map((d) => revByDay[d] || 0),
-        expBuckets: allDates.map((d) => expByDay[d] || 0),
-      }
+      return { labels, revBuckets: allDates.map((d) => revByDay[d] || 0), expBuckets: allDates.map((d) => expByDay[d] || 0) }
     }
 
     const revByMonth = new Array(12).fill(0)

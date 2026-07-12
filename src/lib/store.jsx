@@ -115,13 +115,7 @@ export function StoreProvider({ children }) {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
   }, [])
 
-  const setCurrencyMode = useCallback((c) => {
-    setCurrency(c)
-  }, [])
-
-  const update = useCallback((updater) => {
-    setData((d) => (typeof updater === 'function' ? updater(d) : { ...d, ...updater }))
-  }, [])
+  const setCurrencyMode = useCallback((c) => setCurrency(c), [])
 
   const addAccount = useCallback((acc) => {
     const item = { id: 'acc_' + Date.now(), ...acc }
@@ -159,17 +153,6 @@ export function StoreProvider({ children }) {
     setData((d) => ({ ...d, categories: d.categories.filter((c) => c.id !== id) }))
   }, [])
 
-  const addBillName = useCallback((name) => {
-    setData((d) =>
-      d.billNames.some((b) => b.name === name)
-        ? d
-        : { ...d, billNames: [...d.billNames, { id: 'bill_' + Date.now(), name }] }
-    )
-  }, [])
-  const deleteBillName = useCallback((id) => {
-    setData((d) => ({ ...d, billNames: d.billNames.filter((b) => b.id !== id) }))
-  }, [])
-
   const addCustomer = useCallback((name) => {
     const item = { id: 'cus_' + Date.now(), name, createdAt: Date.now() }
     setData((d) => ({ ...d, customers: [...d.customers, item] }))
@@ -185,17 +168,14 @@ export function StoreProvider({ children }) {
     setData({ ...DEFAULT_DATA, ...parsed, banks: parsed.banks?.length ? parsed.banks : DEFAULT_BANKS })
     if (parsed.settings?.theme) setTheme(parsed.settings.theme)
   }, [])
-  const resetData = useCallback(() => {
-    setData({ ...DEFAULT_DATA })
-  }, [])
+  const resetData = useCallback(() => setData({ ...DEFAULT_DATA }), [])
 
   const value = {
-    data, theme, toggleTheme, currency, setCurrencyMode, update,
+    data, theme, toggleTheme, currency, setCurrencyMode,
     addAccount, deleteAccount,
     addRevenue, deleteRevenue,
     addExpense, deleteExpense,
     addCategory, deleteCategory,
-    addBillName, deleteBillName,
     addCustomer, deleteCustomer,
     exportData, importData, resetData,
   }

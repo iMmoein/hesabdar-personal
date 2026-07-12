@@ -80,9 +80,7 @@ export function SettingsPage() {
           onClick={toggleTheme}
           className={`relative w-14 h-8 rounded-full transition shrink-0 ${theme === 'dark' ? 'bg-brand-600' : 'bg-slate-300'}`}
         >
-          <span
-            className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow transition-all ${theme === 'dark' ? 'right-1' : 'right-7'}`}
-          />
+          <span className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow transition-all ${theme === 'dark' ? 'right-1' : 'right-7'}`} />
         </button>
       </div>
 
@@ -134,12 +132,7 @@ export function SettingsPage() {
         ) : (
           <div className="flex gap-2">
             <button onClick={() => setShowReset(false)} className="btn-ghost flex-1">انصراف</button>
-            <button
-              onClick={() => { resetData(); setShowReset(false) }}
-              className="btn-danger flex-1"
-            >
-              تایید حذف
-            </button>
+            <button onClick={() => { resetData(); setShowReset(false) }} className="btn-danger flex-1">تایید حذف</button>
           </div>
         )}
       </div>

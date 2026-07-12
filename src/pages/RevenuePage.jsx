@@ -28,11 +28,7 @@ export function RevenuePage() {
 
   const submit = () => {
     if (!amountNum || !accountId) return
-    addRevenue({
-      amount: amountNum,
-      accountId,
-      date: jalaliToISO(date),
-    })
+    addRevenue({ amount: amountNum, accountId, date: jalaliToISO(date) })
     resetForm()
     setShowForm(false)
   }
@@ -41,13 +37,7 @@ export function RevenuePage() {
     const bank = data.banks.find((b) => b.id === accBank)
     const customName = accBank === 'other' ? accCustomBank.trim() : ''
     const accountName = customName || bank?.name || 'حساب'
-    const id = addAccount({
-      name: accountName,
-      number: '',
-      balance: 0,
-      bankId: accBank,
-      customBankName: customName,
-    })
+    const id = addAccount({ name: accountName, number: '', balance: 0, bankId: accBank, customBankName: customName })
     setAccountId(id)
     setAccBank(data.banks[0]?.id || 'melli')
     setAccCustomBank('')
@@ -166,11 +156,7 @@ export function RevenuePage() {
           <div>
             <label className="label">حساب</label>
             <div className="flex gap-2">
-              <select
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
-                className="input flex-1"
-              >
+              <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="input flex-1">
                 <option value="">انتخاب حساب...</option>
                 {data.accounts.map((a) => {
                   const b = data.banks.find((b) => b.id === a.bankId)

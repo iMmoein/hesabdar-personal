@@ -1,11 +1,5 @@
 {
   "appId": "com.hesabdar.personal",
   "appName": "حسابدار شخصی",
-  "webDir": "dist",
-  "android": {
-    "allowMixedContent": true,
-    "backgroundColor": "#0b1220",
-    "webContentsDebuggingEnabled": false,
-    "keepRunning": true
-  }
+  "webDir": "dist"
 }

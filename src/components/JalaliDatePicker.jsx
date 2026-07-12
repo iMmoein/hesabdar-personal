@@ -81,17 +81,11 @@ export function JalaliDatePicker({ value, onChange }) {
   }
 
   const prevMonth = () => {
-    setView((v) => {
-      if (v.jm === 1) return { jy: v.jy - 1, jm: 12 }
-      return { jy: v.jy, jm: v.jm - 1 }
-    })
+    setView((v) => v.jm === 1 ? { jy: v.jy - 1, jm: 12 } : { jy: v.jy, jm: v.jm - 1 })
   }
 
   const nextMonth = () => {
-    setView((v) => {
-      if (v.jm === 12) return { jy: v.jy + 1, jm: 1 }
-      return { jy: v.jy, jm: v.jm + 1 }
-    })
+    setView((v) => v.jm === 12 ? { jy: v.jy + 1, jm: 1 } : { jy: v.jy, jm: v.jm + 1 })
   }
 
   return (

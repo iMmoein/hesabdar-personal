@@ -116,11 +116,6 @@ export function todayJalali() {
   return { jy, jm, jd }
 }
 
-export function todayJalaliStr() {
-  const { jy, jm, jd } = todayJalali()
-  return `${jy}/${String(jm).padStart(2, '0')}/${String(jd).padStart(2, '0')}`
-}
-
 export function formatJalaliLong(j) {
   if (!j) return ''
   const months = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
@@ -139,11 +134,6 @@ export function formatRial(n) {
 
 export function formatToman(n) {
   return toPersianDigits(Number((n || 0) / 10).toLocaleString('en-US'))
-}
-
-export function formatMoney(n, currency = 'rial') {
-  if (currency === 'toman') return formatToman(n) + ' تومان'
-  return formatRial(n) + ' ریال'
 }
 
 export function formatAmount(n, currency = 'rial') {
