@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, Receipt, BarChart3, Users, Settings, House } from 'lucide-react'
+import { TrendingUp, Receipt, BarChart3, Users, Settings } from 'lucide-react'
 import RevenuePage from './pages/RevenuePage'
 import ExpensesPage from './pages/ExpensesPage'
 import ReportsPage from './pages/ReportsPage'
@@ -18,7 +18,6 @@ const TABS = [
 export default function App() {
   const [activeTab, setActiveTab] = useState('revenue')
 
-  // Android back button via @capacitor/app (dynamic import — no-op on web)
   useEffect(() => {
     let listener
     let cancelled = false
@@ -28,22 +27,19 @@ export default function App() {
         const { App } = await import('@capacitor/app')
         if (cancelled) return
         listener = await App.addListener('backButton', () => {
-          // 1. Check if a modal or sub-page has registered a back handler
           const topHandler = getTopBackHandler()
           if (topHandler) {
             topHandler()
             return
           }
-          // 2. If not on root tab, go to root tab
           if (activeTab !== 'revenue') {
             setActiveTab('revenue')
             return
           }
-          // 3. On root tab — exit app
           App.exitApp()
         })
       } catch {
-        // Not running in Capacitor — ignore
+        // Not running in Capacitor
       }
     })()
 
@@ -62,7 +58,6 @@ export default function App() {
         <ActiveComponent />
       </div>
 
-      {/* Bottom nav */}
       <nav
         className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-700 z-40"
         style={{ paddingBottom: 'var(--safe-bottom)' }}

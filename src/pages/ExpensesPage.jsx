@@ -37,7 +37,6 @@ export default function ExpensesPage() {
   const isPayment = selectedCategory?.id === 'payment' || selectedCategory?.name === 'پرداختی'
   const isBills = selectedCategory?.id === 'bills' || selectedCategory?.name === 'قبوض'
 
-  // Main expense form dirty
   const formDirty = useMemo(
     () => Boolean(amount) || Boolean(categoryId) || Boolean(accountId) ||
        date !== todayISO() || Boolean(time) || Boolean(description) ||
@@ -45,13 +44,8 @@ export default function ExpensesPage() {
     [amount, categoryId, accountId, date, time, description, customerId, billNameId]
   )
 
-  // Category modal dirty
   const categoryDirty = useMemo(() => Boolean(newCategoryName.trim()), [newCategoryName])
-
-  // Bill manager add-input dirty
   const billDirty = useMemo(() => Boolean(newBillName.trim()), [newBillName])
-
-  // Customer modal dirty
   const customerDirty = useMemo(() => Boolean(newCustomerName.trim()), [newCustomerName])
 
   const resetForm = () => {
@@ -152,7 +146,6 @@ export default function ExpensesPage() {
         })}
       </div>
 
-      {/* Expense Form Modal — dirty tracked */}
       <Modal
         open={showForm}
         onClose={() => { setShowForm(false); resetForm() }}
@@ -241,19 +234,17 @@ export default function ExpensesPage() {
         </div>
       </Modal>
 
-      {/* Bank Picker — not a form */}
       <Modal open={showBankPicker} onClose={() => setShowBankPicker(false)} title="انتخاب بانک" size="xl">
         <div className="grid grid-cols-3 gap-2">
           {DEFAULT_BANKS.map((bank) => (
             <button key={bank.id} onClick={() => handleAddAccount(bank.id)} className="card p-3 flex flex-col items-center gap-2 hover:border-brand-400 transition">
-              <BankLogo bank={bank} size={44} />
+              <BankLogo bank={bank} size={48} />
               <span className="text-xs text-slate-600 dark:text-slate-300 text-center">{bank.name}</span>
             </button>
           ))}
         </div>
       </Modal>
 
-      {/* Add Category Modal — dirty tracked */}
       <Modal
         open={showAddCategory}
         onClose={() => { setShowAddCategory(false); setNewCategoryName('') }}
@@ -271,7 +262,6 @@ export default function ExpensesPage() {
         <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="input" placeholder="نام دسته‌بندی" autoFocus />
       </Modal>
 
-      {/* Bill Manager Modal — dirty tracked on the input */}
       <Modal
         open={showBillManager}
         onClose={() => { setShowBillManager(false); setNewBillName('') }}
@@ -302,7 +292,6 @@ export default function ExpensesPage() {
         </div>
       </Modal>
 
-      {/* Add Customer Modal — dirty tracked */}
       <Modal
         open={showAddCustomer}
         onClose={() => { setShowAddCustomer(false); setNewCustomerName('') }}

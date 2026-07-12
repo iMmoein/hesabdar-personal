@@ -5,7 +5,7 @@ import { formatAmount, toPersianDigits } from '../lib/jalali'
 import Modal from '../components/Modal'
 
 export default function SettingsPage() {
-  const { theme, toggleTheme, currency, toggleCurrency, revenues, expenses, customers, accounts, categories, exportData, importData, resetData } = useStore()
+  const { theme, toggleTheme, currency, toggleCurrency, revenues, expenses, customers, accounts, exportData, importData, resetData } = useStore()
   const fileRef = useRef(null)
   const [showReset, setShowReset] = useState(false)
   const [importMsg, setImportMsg] = useState('')
@@ -30,7 +30,6 @@ export default function SettingsPage() {
     <div className="px-4 pt-4 pb-28 space-y-4">
       <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">تنظیمات</h1>
 
-      {/* Currency toggle */}
       <div className="card p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -59,7 +58,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Theme toggle */}
       <div className="card p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -78,7 +76,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Statistics */}
       <div className="card p-4">
         <div className="flex items-center gap-3 mb-3">
           <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-900/40">
@@ -94,7 +91,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Backup / Restore */}
       <div className="card p-4 space-y-3">
         <p className="font-semibold text-slate-800 dark:text-slate-100">پشتیبان‌گیری</p>
         <button onClick={exportData} className="btn-primary w-full">
@@ -107,7 +103,6 @@ export default function SettingsPage() {
         {importMsg && <p className="text-sm text-center text-brand-600 dark:text-brand-400">{importMsg}</p>}
       </div>
 
-      {/* Reset */}
       <div className="card p-4">
         <button onClick={() => setShowReset(true)} className="btn-danger w-full">
           <Trash2 size={18} /> پاک کردن همه داده‌ها
@@ -116,7 +111,6 @@ export default function SettingsPage() {
 
       <p className="text-center text-xs text-slate-400 pt-2">حسابدار شخصی — نسخه ۱.۰.۰</p>
 
-      {/* Reset confirmation — this is already a confirm dialog, no dirty needed */}
       <Modal open={showReset} onClose={() => setShowReset(false)} title="تایید پاک کردن" footer={
         <div className="flex gap-2">
           <button onClick={() => setShowReset(false)} className="btn-ghost flex-1">انصراف</button>

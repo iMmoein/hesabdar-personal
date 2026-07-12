@@ -1,10 +1,56 @@
+import { useState } from 'react'
 import { Landmark } from 'lucide-react'
 
+// Resolves a bank logo path relative to the app base URL.
+// In Capacitor's file:// WebView, absolute paths (starting with /) don't work.
+// Vite's base: './' makes import.meta.env.BASE_URL = './', so we prepend it
+// to the relative 'banks/xxx.svg' path to get a fully relative URL.
+function resolveLogo(logo) {
+  if (!logo) return ''
+  // If already absolute (http or file), use as-is
+  if (/^(https?:|file:|data:)/.test(logo)) return logo
+  // Strip leading slash if present, then prepend BASE_URL
+  const clean = logo.replace(/^\/+/, '')
+  return import.meta.env.BASE_URL + clean
+}
+
 export default function BankLogo({ bank, size = 40 }) {
-  if (!bank || bank.id === 'other') {
+  const [imgError, setImgError] = useState(false)
+
+  // "other" or no logo → colored circle with letter (or Landmark icon for "other")
+  if (!bank || !bank.logo || bank.id === 'other' || imgError) {
+    if (bank && bank.id === 'other') {
+      return (
+        <div
+          className="flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300"
+          style={{ width: size, height: size }}
+        >
+          <Landmark size={size * 0.5} />
+        </div>
+      )
+    }
+    // Fallback: colored circle with first letter
+    if (bank) {
+      const color = bank.color || '#607d8b'
+      const darker = shadeColor(color, -30)
+      return (
+        <div
+          className="flex items-center justify-center rounded-full font-bold text-white shadow-sm"
+          style={{
+            width: size,
+            height: size,
+            fontSize: size * 0.42,
+            background: `linear-gradient(135deg, ${color}, ${darker})`
+          }}
+        >
+          {bank.short || bank.name?.charAt(0) || '؟'}
+        </div>
+      )
+    }
+    // No bank at all
     return (
       <div
-        className="flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300"
+        className="flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-400"
         style={{ width: size, height: size }}
       >
         <Landmark size={size * 0.5} />
@@ -12,20 +58,18 @@ export default function BankLogo({ bank, size = 40 }) {
     )
   }
 
-  const color = bank.color || '#607d8b'
-  const darker = shadeColor(color, -30)
-
+  // SVG logo with white circular bg in dark mode
   return (
     <div
-      className="flex items-center justify-center rounded-full font-bold text-white shadow-sm"
-      style={{
-        width: size,
-        height: size,
-        fontSize: size * 0.42,
-        background: `linear-gradient(135deg, ${color}, ${darker})`
-      }}
+      className="flex items-center justify-center rounded-full dark:bg-white dark:p-1"
+      style={{ width: size, height: size }}
     >
-      {bank.short || bank.name?.charAt(0) || '؟'}
+      <img
+        src={resolveLogo(bank.logo)}
+        alt={bank.name}
+        className="w-full h-full object-contain"
+        onError={() => setImgError(true)}
+      />
     </div>
   )
 }

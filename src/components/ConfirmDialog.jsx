@@ -1,13 +1,5 @@
 import { useEffect } from 'react'
 
-/**
- * Centered confirmation dialog for unsaved changes.
- * Props:
- *   open: boolean
- *   onSave: () => void   — save and close
- *   onDiscard: () => void — close without saving
- *   onCancel: () => void  — keep modal open
- */
 export default function ConfirmDialog({ open, onDiscard, onCancel, onSave }) {
   useEffect(() => {
     if (!open) return

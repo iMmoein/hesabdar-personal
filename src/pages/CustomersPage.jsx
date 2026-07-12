@@ -35,7 +35,6 @@ export default function CustomersPage() {
     return txs.reduce((s, t) => s + (t.type === 'revenue' ? Number(t.amount) : -Number(t.amount)), 0)
   }
 
-  // Sub-page back button handling
   useEffect(() => {
     if (!selectedCustomer) return
     pushBackHandler(() => setSelectedCustomer(null))
@@ -99,7 +98,6 @@ export default function CustomersPage() {
           })}
         </div>
 
-        {/* Transaction detail modal — read-only, no dirty */}
         <Modal open={!!detailTx} onClose={() => setDetailTx(null)} title="جزئیات تراکنش">
           {detailTx && (
             <div className="space-y-3">
@@ -159,7 +157,6 @@ export default function CustomersPage() {
         })}
       </div>
 
-      {/* Add Customer Modal — dirty tracked */}
       <Modal
         open={showForm}
         onClose={() => { setShowForm(false); setNewName('') }}

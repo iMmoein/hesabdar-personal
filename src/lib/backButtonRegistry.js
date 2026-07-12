@@ -1,7 +1,4 @@
 // Simple stack-based registry for Android back button handlers.
-// Modal pushes its attemptClose; ConfirmDialog pushes its onCancel.
-// App.jsx calls getTopBackHandler() on back button press.
-
 let stack = []
 
 export function pushBackHandler(handler) {

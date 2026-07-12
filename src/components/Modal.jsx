@@ -3,14 +3,6 @@ import { X } from 'lucide-react'
 import ConfirmDialog from './ConfirmDialog'
 import { pushBackHandler, popBackHandler } from '../lib/backButtonRegistry'
 
-/**
- * Modal with optional dirty-state confirmation.
- * Props:
- *   open, onClose, title, children, footer, size — same as before
- *   dirty: boolean     — whether the form has unsaved changes
- *   onSave: () => void  — called when user picks "ذخیره" in confirm dialog
- *   onDiscard: () => void — called when user picks "ذخیره نکن" (defaults to onClose)
- */
 export default function Modal({ open, onClose, title, children, footer, size = 'md', dirty = false, onSave, onDiscard }) {
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -21,12 +13,10 @@ export default function Modal({ open, onClose, title, children, footer, size = '
     }
   }, [open])
 
-  // Reset confirm state when modal closes
   useEffect(() => {
     if (!open) setShowConfirm(false)
   }, [open])
 
-  // Register back button handler while modal is open
   useEffect(() => {
     if (!open) return
     pushBackHandler(attemptClose)
@@ -38,10 +28,8 @@ export default function Modal({ open, onClose, title, children, footer, size = '
 
   const maxW = size === 'lg' ? 'sm:max-w-lg' : size === 'xl' ? 'sm:max-w-xl' : 'sm:max-w-md'
 
-  // Attempt to close — if dirty, show confirm dialog instead
   function attemptClose() {
     if (showConfirm) {
-      // If confirm dialog is open, back button = cancel (keep modal open)
       setShowConfirm(false)
       return
     }

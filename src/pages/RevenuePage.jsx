@@ -20,7 +20,6 @@ export default function RevenuePage() {
   const filtered = filterByDate(revenues, filter)
   const total = filtered.reduce((s, r) => s + Number(r.amount || 0), 0)
 
-  // Dirty = any field has been changed from defaults
   const formDirty = useMemo(
     () => Boolean(amount) || Boolean(accountId) || date !== todayISO(),
     [amount, accountId, date]
@@ -86,7 +85,6 @@ export default function RevenuePage() {
         })}
       </div>
 
-      {/* Add Revenue Modal — dirty tracked */}
       <Modal
         open={showForm}
         onClose={() => { setShowForm(false); resetForm() }}
@@ -128,7 +126,6 @@ export default function RevenuePage() {
         </div>
       </Modal>
 
-      {/* Bank Picker — not a form, no dirty needed */}
       <Modal open={showBankPicker} onClose={() => setShowBankPicker(false)} title="انتخاب بانک" size="xl">
         <div className="grid grid-cols-3 gap-2">
           {DEFAULT_BANKS.map((bank) => (
@@ -137,7 +134,7 @@ export default function RevenuePage() {
               onClick={() => handleAddAccount(bank.id)}
               className="card p-3 flex flex-col items-center gap-2 hover:border-brand-400 transition"
             >
-              <BankLogo bank={bank} size={44} />
+              <BankLogo bank={bank} size={48} />
               <span className="text-xs text-slate-600 dark:text-slate-300 text-center">{bank.name}</span>
             </button>
           ))}
