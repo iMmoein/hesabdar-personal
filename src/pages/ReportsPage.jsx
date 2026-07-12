@@ -6,8 +6,8 @@ import JalaliDatePicker from '../components/JalaliDatePicker'
 
 export default function ReportsPage() {
   const { revenues, expenses, currency } = useStore()
-  const [reportType, setReportType] = useState('monthly') // 'monthly' | 'comparative'
-  const [subType, setSubType] = useState('revenue') // 'revenue' | 'expense'
+  const [reportType, setReportType] = useState('monthly')
+  const [subType, setSubType] = useState('revenue')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
@@ -16,7 +16,6 @@ export default function ReportsPage() {
       const items = subType === 'revenue' ? revenues : expenses
       const filtered = filterByDateRange(items, startDate, endDate)
 
-      // Group by Jalali month
       const byMonth = {}
       filtered.forEach((item) => {
         if (!item.date) return
@@ -27,16 +26,12 @@ export default function ReportsPage() {
         byMonth[key].count += 1
       })
 
-      return Object.values(byMonth).sort((a, b) => {
-        const [ay, am] = a.label.split(' ').map((x, i) => i === 1 ? toEnglish(x) : 0)
-        return 0
-      }).map((d) => ({
+      return Object.values(byMonth).map((d) => ({
         name: d.label,
         amount: currency === 'toman' ? Math.round(d.amount / 10) : d.amount,
         count: d.count
       }))
     } else {
-      // Comparative: revenue vs expenses by month
       const revFiltered = filterByDateRange(revenues, startDate, endDate)
       const expFiltered = filterByDateRange(expenses, startDate, endDate)
 
@@ -64,10 +59,6 @@ export default function ReportsPage() {
     }
   }, [revenues, expenses, reportType, subType, startDate, endDate, currency])
 
-  function toEnglish(s) {
-    return s.replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
-  }
-
   const totalRev = filterByDateRange(revenues, startDate, endDate).reduce((s, r) => s + Number(r.amount || 0), 0)
   const totalExp = filterByDateRange(expenses, startDate, endDate).reduce((s, e) => s + Number(e.amount || 0), 0)
 
@@ -75,7 +66,6 @@ export default function ReportsPage() {
     <div className="px-4 pt-4 pb-28 space-y-4">
       <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">گزارشات</h1>
 
-      {/* Main report type buttons */}
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => setReportType('monthly')}
@@ -91,7 +81,6 @@ export default function ReportsPage() {
         </button>
       </div>
 
-      {/* Sub-type for monthly */}
       {reportType === 'monthly' && (
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -109,7 +98,6 @@ export default function ReportsPage() {
         </div>
       )}
 
-      {/* Date range pickers */}
       <div className="space-y-3">
         <div>
           <label className="label">از تاریخ</label>
@@ -121,7 +109,6 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">
         <div className="card p-3 bg-green-50 dark:bg-green-900/20">
           <p className="text-xs text-slate-500 dark:text-slate-400">مجموع درآمد</p>
@@ -133,7 +120,6 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Chart */}
       <div className="card p-4">
         <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4">
           {reportType === 'monthly'

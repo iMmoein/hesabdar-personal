@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Plus, Trash2, Users, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react'
 import { useStore, DEFAULT_BANKS } from '../lib/store'
 import { formatAmount, formatJalaliLong, todayISO, filterByDate, toPersianDigits } from '../lib/jalali'
 import Modal from '../components/Modal'
 import BankLogo from '../components/BankLogo'
 import FilterBar from '../components/FilterBar'
+import { pushBackHandler, popBackHandler } from '../lib/backButtonRegistry'
 
 export default function CustomersPage() {
   const { customers, revenues, expenses, accounts, categories, currency, addCustomer, deleteCustomer } = useStore()
@@ -13,6 +14,8 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState(null)
   const [filter, setFilter] = useState('all')
   const [detailTx, setDetailTx] = useState(null)
+
+  const formDirty = useMemo(() => Boolean(newName.trim()), [newName])
 
   const handleAdd = () => {
     if (!newName.trim()) return
@@ -31,6 +34,13 @@ export default function CustomersPage() {
     const txs = getCustomerTransactions(custId)
     return txs.reduce((s, t) => s + (t.type === 'revenue' ? Number(t.amount) : -Number(t.amount)), 0)
   }
+
+  // Sub-page back button handling
+  useEffect(() => {
+    if (!selectedCustomer) return
+    pushBackHandler(() => setSelectedCustomer(null))
+    return () => popBackHandler()
+  }, [selectedCustomer])
 
   if (selectedCustomer) {
     const allTxs = getCustomerTransactions(selectedCustomer.id)
@@ -89,7 +99,7 @@ export default function CustomersPage() {
           })}
         </div>
 
-        {/* Transaction detail modal */}
+        {/* Transaction detail modal — read-only, no dirty */}
         <Modal open={!!detailTx} onClose={() => setDetailTx(null)} title="جزئیات تراکنش">
           {detailTx && (
             <div className="space-y-3">
@@ -149,9 +159,21 @@ export default function CustomersPage() {
         })}
       </div>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="افزودن مشتری" footer={
-        <button onClick={handleAdd} className="btn-primary w-full">افزودن</button>
-      }>
+      {/* Add Customer Modal — dirty tracked */}
+      <Modal
+        open={showForm}
+        onClose={() => { setShowForm(false); setNewName('') }}
+        title="افزودن مشتری"
+        dirty={formDirty}
+        onSave={handleAdd}
+        onDiscard={() => { setShowForm(false); setNewName('') }}
+        footer={({ attemptClose }) => (
+          <div className="flex gap-2">
+            <button onClick={attemptClose} className="btn-ghost flex-1">انصراف</button>
+            <button onClick={handleAdd} className="btn-primary flex-1">افزودن</button>
+          </div>
+        )}
+      >
         <input value={newName} onChange={(e) => setNewName(e.target.value)} className="input" placeholder="نام مشتری" autoFocus />
       </Modal>
     </div>

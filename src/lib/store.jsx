@@ -89,7 +89,6 @@ export function StoreProvider({ children }) {
     localStorage.setItem(CURRENCY_KEY, currency)
   }, [currency])
 
-  // Accounts
   const addAccount = (account) => {
     const id = `acc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newAcc = { id, createdAt: todayISO(), ...account }
@@ -98,7 +97,6 @@ export function StoreProvider({ children }) {
   }
   const deleteAccount = (id) => setData((d) => ({ ...d, accounts: d.accounts.filter((a) => a.id !== id) }))
 
-  // Revenues
   const addRevenue = (rev) => {
     const id = `rev_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newRev = { id, createdAt: todayISO(), ...rev }
@@ -107,7 +105,6 @@ export function StoreProvider({ children }) {
   }
   const deleteRevenue = (id) => setData((d) => ({ ...d, revenues: d.revenues.filter((r) => r.id !== id) }))
 
-  // Expenses
   const addExpense = (exp) => {
     const id = `exp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newExp = { id, createdAt: todayISO(), ...exp }
@@ -116,7 +113,6 @@ export function StoreProvider({ children }) {
   }
   const deleteExpense = (id) => setData((d) => ({ ...d, expenses: d.expenses.filter((e) => e.id !== id) }))
 
-  // Categories
   const addCategory = (cat) => {
     const id = `cat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newCat = { id, type: 'expense', ...cat }
@@ -125,7 +121,6 @@ export function StoreProvider({ children }) {
   }
   const deleteCategory = (id) => setData((d) => ({ ...d, categories: d.categories.filter((c) => c.id !== id) }))
 
-  // Bill names
   const addBillName = (name) => {
     const id = `bill_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newBill = { id, name }
@@ -134,7 +129,6 @@ export function StoreProvider({ children }) {
   }
   const deleteBillName = (id) => setData((d) => ({ ...d, billNames: d.billNames.filter((b) => b.id !== id) }))
 
-  // Customers
   const addCustomer = (cust) => {
     const id = `cus_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const newCust = { id, createdAt: todayISO(), ...cust }
@@ -143,7 +137,6 @@ export function StoreProvider({ children }) {
   }
   const deleteCustomer = (id) => setData((d) => ({ ...d, customers: d.customers.filter((c) => c.id !== id) }))
 
-  // Export / Import / Reset
   const exportData = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)

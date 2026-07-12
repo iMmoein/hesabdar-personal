@@ -116,6 +116,7 @@ export default function SettingsPage() {
 
       <p className="text-center text-xs text-slate-400 pt-2">حسابدار شخصی — نسخه ۱.۰.۰</p>
 
+      {/* Reset confirmation — this is already a confirm dialog, no dirty needed */}
       <Modal open={showReset} onClose={() => setShowReset(false)} title="تایید پاک کردن" footer={
         <div className="flex gap-2">
           <button onClick={() => setShowReset(false)} className="btn-ghost flex-1">انصراف</button>

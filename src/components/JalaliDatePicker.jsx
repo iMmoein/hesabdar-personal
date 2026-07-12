@@ -1,25 +1,21 @@
 import { useState } from 'react'
 import { ChevronRight, ChevronLeft } from 'lucide-react'
-import { gregorianToJalali, jalaliToGregorian, jalaliToISO, isoToJalali, isLeapJalali, todayJalali, toPersianDigits } from '../lib/jalali'
+import { jalaliToGregorian, jalaliToISO, isoToJalali, isLeapJalali, todayJalali, toPersianDigits } from '../lib/jalali'
 
 const WEEKDAYS = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج']
 const MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
 const J_DAYS = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29]
 
 export default function JalaliDatePicker({ value, onChange }) {
-  // value is ISO string; we parse to jalali for initial view
   const initial = value ? isoToJalali(value) : todayJalali()
   const [viewYear, setViewYear] = useState(initial[0])
-  const [viewMonth, setViewMonth] = useState(initial[1]) // 1-12
-  // selectedDay tracks the exact day the user picks
+  const [viewMonth, setViewMonth] = useState(initial[1])
   const [selected, setSelected] = useState(value ? initial : null)
 
   const daysInMonth = viewMonth === 12 && isLeapJalali(viewYear) ? 30 : J_DAYS[viewMonth - 1]
 
-  // Find weekday of day 1 of the month. Convert jalali(viewYear, viewMonth, 1) to gregorian, then getDay().
   const [gy, gm, gd] = jalaliToGregorian(viewYear, viewMonth, 1)
-  const firstDow = new Date(gy, gm - 1, gd).getDay() // 0=Sunday
-  // Convert JS getDay (0=Sun) to Persian (0=Sat)
+  const firstDow = new Date(gy, gm - 1, gd).getDay()
   const offset = (firstDow + 1) % 7
 
   const prevMonth = () => {
@@ -32,7 +28,6 @@ export default function JalaliDatePicker({ value, onChange }) {
   }
 
   const handleDayClick = (day) => {
-    // Save EXACT selected date — do NOT override with today
     const iso = jalaliToISO(viewYear, viewMonth, day)
     setSelected([viewYear, viewMonth, day])
     onChange(iso)

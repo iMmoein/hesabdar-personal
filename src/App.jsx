@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { TrendingUp, Receipt, BarChart3, Users, Settings, House } from 'lucide-react'
 import RevenuePage from './pages/RevenuePage'
 import ExpensesPage from './pages/ExpensesPage'
 import ReportsPage from './pages/ReportsPage'
 import CustomersPage from './pages/CustomersPage'
 import SettingsPage from './pages/SettingsPage'
+import { getTopBackHandler, clearBackStack } from './lib/backButtonRegistry'
 
 const TABS = [
   { id: 'revenue', label: 'درآمد', icon: TrendingUp, component: RevenuePage },
@@ -16,9 +17,6 @@ const TABS = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('revenue')
-  const [modalOpen, setModalOpen] = useState(false)
-  const [subPage, setSubPage] = useState(null)
-  const exitTimer = useRef(null)
 
   // Android back button via @capacitor/app (dynamic import — no-op on web)
   useEffect(() => {
@@ -30,19 +28,18 @@ export default function App() {
         const { App } = await import('@capacitor/app')
         if (cancelled) return
         listener = await App.addListener('backButton', () => {
-          if (modalOpen) {
-            setModalOpen(false)
+          // 1. Check if a modal or sub-page has registered a back handler
+          const topHandler = getTopBackHandler()
+          if (topHandler) {
+            topHandler()
             return
           }
-          if (subPage) {
-            setSubPage(null)
-            return
-          }
+          // 2. If not on root tab, go to root tab
           if (activeTab !== 'revenue') {
             setActiveTab('revenue')
             return
           }
-          // On root tab — exit app
+          // 3. On root tab — exit app
           App.exitApp()
         })
       } catch {
@@ -53,15 +50,16 @@ export default function App() {
     return () => {
       cancelled = true
       if (listener && typeof listener.remove === 'function') listener.remove()
+      clearBackStack()
     }
-  }, [activeTab, modalOpen, subPage])
+  }, [activeTab])
 
   const ActiveComponent = TABS.find((t) => t.id === activeTab)?.component || RevenuePage
 
   return (
     <div className="app-bg min-h-[100dvh] flex flex-col">
       <div className="flex-1 overflow-y-auto no-scrollbar">
-        <ActiveComponent onSubPageChange={setSubPage} onModalChange={setModalOpen} />
+        <ActiveComponent />
       </div>
 
       {/* Bottom nav */}

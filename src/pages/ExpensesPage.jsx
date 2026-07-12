@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus, Trash2, Receipt, Wallet, Clock, X } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Plus, Trash2, Receipt, Wallet, Clock } from 'lucide-react'
 import { useStore, DEFAULT_BANKS } from '../lib/store'
 import { formatAmount, formatJalaliLong, todayISO, filterByDate, toPersianDigits } from '../lib/jalali'
 import Modal from '../components/Modal'
@@ -36,6 +36,23 @@ export default function ExpensesPage() {
   const selectedCategory = categories.find((c) => c.id === categoryId)
   const isPayment = selectedCategory?.id === 'payment' || selectedCategory?.name === 'پرداختی'
   const isBills = selectedCategory?.id === 'bills' || selectedCategory?.name === 'قبوض'
+
+  // Main expense form dirty
+  const formDirty = useMemo(
+    () => Boolean(amount) || Boolean(categoryId) || Boolean(accountId) ||
+       date !== todayISO() || Boolean(time) || Boolean(description) ||
+       Boolean(customerId) || Boolean(billNameId),
+    [amount, categoryId, accountId, date, time, description, customerId, billNameId]
+  )
+
+  // Category modal dirty
+  const categoryDirty = useMemo(() => Boolean(newCategoryName.trim()), [newCategoryName])
+
+  // Bill manager add-input dirty
+  const billDirty = useMemo(() => Boolean(newBillName.trim()), [newBillName])
+
+  // Customer modal dirty
+  const customerDirty = useMemo(() => Boolean(newCustomerName.trim()), [newCustomerName])
 
   const resetForm = () => {
     setAmount(''); setCategoryId(''); setAccountId(''); setDate(todayISO())
@@ -135,10 +152,22 @@ export default function ExpensesPage() {
         })}
       </div>
 
-      {/* Expense Form Modal */}
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="ثبت هزینه" size="lg" footer={
-        <button onClick={handleSubmit} className="btn-primary w-full">ثبت</button>
-      }>
+      {/* Expense Form Modal — dirty tracked */}
+      <Modal
+        open={showForm}
+        onClose={() => { setShowForm(false); resetForm() }}
+        title="ثبت هزینه"
+        size="lg"
+        dirty={formDirty}
+        onSave={handleSubmit}
+        onDiscard={() => { setShowForm(false); resetForm() }}
+        footer={({ attemptClose }) => (
+          <div className="flex gap-2">
+            <button onClick={attemptClose} className="btn-ghost flex-1">انصراف</button>
+            <button onClick={handleSubmit} className="btn-primary flex-1">ثبت</button>
+          </div>
+        )}
+      >
         <div className="space-y-4">
           <div>
             <label className="label">مبلغ</label>
@@ -155,7 +184,6 @@ export default function ExpensesPage() {
             </div>
           </div>
 
-          {/* Conditional: پرداختی → customer list */}
           {isPayment && (
             <div>
               <label className="label">مشتری</label>
@@ -169,7 +197,6 @@ export default function ExpensesPage() {
             </div>
           )}
 
-          {/* Conditional: قبوض → bill names */}
           {isBills && (
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -214,7 +241,7 @@ export default function ExpensesPage() {
         </div>
       </Modal>
 
-      {/* Bank Picker */}
+      {/* Bank Picker — not a form */}
       <Modal open={showBankPicker} onClose={() => setShowBankPicker(false)} title="انتخاب بانک" size="xl">
         <div className="grid grid-cols-3 gap-2">
           {DEFAULT_BANKS.map((bank) => (
@@ -226,15 +253,36 @@ export default function ExpensesPage() {
         </div>
       </Modal>
 
-      {/* Add Category */}
-      <Modal open={showAddCategory} onClose={() => setShowAddCategory(false)} title="افزودن دسته‌بندی" footer={
-        <button onClick={handleAddCategory} className="btn-primary w-full">افزودن</button>
-      }>
+      {/* Add Category Modal — dirty tracked */}
+      <Modal
+        open={showAddCategory}
+        onClose={() => { setShowAddCategory(false); setNewCategoryName('') }}
+        title="افزودن دسته‌بندی"
+        dirty={categoryDirty}
+        onSave={handleAddCategory}
+        onDiscard={() => { setShowAddCategory(false); setNewCategoryName('') }}
+        footer={({ attemptClose }) => (
+          <div className="flex gap-2">
+            <button onClick={attemptClose} className="btn-ghost flex-1">انصراف</button>
+            <button onClick={handleAddCategory} className="btn-primary flex-1">افزودن</button>
+          </div>
+        )}
+      >
         <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="input" placeholder="نام دسته‌بندی" autoFocus />
       </Modal>
 
-      {/* Bill Manager */}
-      <Modal open={showBillManager} onClose={() => setShowBillManager(false)} title="مدیریت قبوض" size="lg">
+      {/* Bill Manager Modal — dirty tracked on the input */}
+      <Modal
+        open={showBillManager}
+        onClose={() => { setShowBillManager(false); setNewBillName('') }}
+        title="مدیریت قبوض"
+        size="lg"
+        dirty={billDirty}
+        onDiscard={() => { setShowBillManager(false); setNewBillName('') }}
+        footer={({ attemptClose }) => (
+          <button onClick={attemptClose} className="btn-ghost w-full">بستن</button>
+        )}
+      >
         <div className="space-y-3">
           <div className="flex gap-2">
             <input value={newBillName} onChange={(e) => setNewBillName(e.target.value)} className="input" placeholder="نام قبض (مثلاً برق، آب، گاز)" />
@@ -254,10 +302,21 @@ export default function ExpensesPage() {
         </div>
       </Modal>
 
-      {/* Add Customer */}
-      <Modal open={showAddCustomer} onClose={() => setShowAddCustomer(false)} title="افزودن مشتری" footer={
-        <button onClick={handleAddCustomer} className="btn-primary w-full">افزودن</button>
-      }>
+      {/* Add Customer Modal — dirty tracked */}
+      <Modal
+        open={showAddCustomer}
+        onClose={() => { setShowAddCustomer(false); setNewCustomerName('') }}
+        title="افزودن مشتری"
+        dirty={customerDirty}
+        onSave={handleAddCustomer}
+        onDiscard={() => { setShowAddCustomer(false); setNewCustomerName('') }}
+        footer={({ attemptClose }) => (
+          <div className="flex gap-2">
+            <button onClick={attemptClose} className="btn-ghost flex-1">انصراف</button>
+            <button onClick={handleAddCustomer} className="btn-primary flex-1">افزودن</button>
+          </div>
+        )}
+      >
         <input value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} className="input" placeholder="نام مشتری" autoFocus />
       </Modal>
     </div>

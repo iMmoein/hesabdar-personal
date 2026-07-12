@@ -136,7 +136,6 @@ export function currencyLabel(currency) {
   return currency === 'toman' ? 'تومان' : 'ریال'
 }
 
-// filter: 'all' | 'monthly' | 'yearly'
 export function filterByDate(items, filter, dateField = 'date') {
   if (filter === 'all') return items
   const [ty, tm] = todayJalali()

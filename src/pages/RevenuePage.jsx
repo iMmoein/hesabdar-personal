@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Trash2, TrendingUp, Wallet } from 'lucide-react'
 import { useStore, DEFAULT_BANKS } from '../lib/store'
 import { formatAmount, formatJalaliLong, todayISO, filterByDate, toPersianDigits } from '../lib/jalali'
@@ -19,6 +19,12 @@ export default function RevenuePage() {
 
   const filtered = filterByDate(revenues, filter)
   const total = filtered.reduce((s, r) => s + Number(r.amount || 0), 0)
+
+  // Dirty = any field has been changed from defaults
+  const formDirty = useMemo(
+    () => Boolean(amount) || Boolean(accountId) || date !== todayISO(),
+    [amount, accountId, date]
+  )
 
   const resetForm = () => { setAmount(''); setAccountId(''); setDate(todayISO()) }
 
@@ -80,9 +86,21 @@ export default function RevenuePage() {
         })}
       </div>
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title="ثبت درآمد" footer={
-        <button onClick={handleSubmit} className="btn-primary w-full">ثبت</button>
-      }>
+      {/* Add Revenue Modal — dirty tracked */}
+      <Modal
+        open={showForm}
+        onClose={() => { setShowForm(false); resetForm() }}
+        title="ثبت درآمد"
+        dirty={formDirty}
+        onSave={handleSubmit}
+        onDiscard={() => { setShowForm(false); resetForm() }}
+        footer={({ attemptClose }) => (
+          <div className="flex gap-2">
+            <button onClick={attemptClose} className="btn-ghost flex-1">انصراف</button>
+            <button onClick={handleSubmit} className="btn-primary flex-1">ثبت</button>
+          </div>
+        )}
+      >
         <div className="space-y-4">
           <div>
             <label className="label">مبلغ</label>
@@ -110,6 +128,7 @@ export default function RevenuePage() {
         </div>
       </Modal>
 
+      {/* Bank Picker — not a form, no dirty needed */}
       <Modal open={showBankPicker} onClose={() => setShowBankPicker(false)} title="انتخاب بانک" size="xl">
         <div className="grid grid-cols-3 gap-2">
           {DEFAULT_BANKS.map((bank) => (
