@@ -5,7 +5,7 @@ import { formatAmount, formatJalaliLong, todayJalaliString, filterByDate, sortBy
 import Modal from '../components/Modal'
 import BankLogo from '../components/BankLogo'
 import FilterBar from '../components/FilterBar'
-import SortButton from '../components/SortButton'
+import SortBar from '../components/SortBar'
 import AmountInput from '../components/AmountInput'
 import JalaliDatePicker from '../components/JalaliDatePicker'
 import ConfirmActionDialog from '../components/ConfirmActionDialog'
@@ -35,6 +35,7 @@ export default function ExpensesPage() {
   const [showAddCustomer, setShowAddCustomer] = useState(false)
   const [filter, setFilter] = useState('all')
   const [selectedMonth, setSelectedMonth] = useState(null)
+  const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
   const [editingId, setEditingId] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -56,7 +57,35 @@ export default function ExpensesPage() {
   const [newCustomerName, setNewCustomerName] = useState('')
 
   const filtered = filterByDate(expenses, filter, 'date', selectedMonth)
-  const sorted = sortByDate(filtered, sortDir)
+  const sorted = useMemo(() => {
+    const items = [...filtered]
+    if (sortField === 'date') {
+      items.sort((a, b) => {
+        const cmp = (a.date || '').localeCompare(b.date || '')
+        if (cmp !== 0) return sortDir === 'desc' ? -cmp : cmp
+        return (b.createdAt || b.id || '').localeCompare(a.createdAt || a.id || '')
+      })
+    } else if (sortField === 'amount') {
+      items.sort((a, b) => {
+        const cmp = Number(a.amount || 0) - Number(b.amount || 0)
+        if (cmp !== 0) return sortDir === 'desc' ? -cmp : cmp
+        return (b.createdAt || b.id || '').localeCompare(a.createdAt || a.id || '')
+      })
+    } else if (sortField === 'bank') {
+      items.sort((a, b) => {
+        const accA = accounts.find((acc) => acc.id === a.accountId)
+        const accB = accounts.find((acc) => acc.id === b.accountId)
+        const bankA = DEFAULT_BANKS.find((bk) => bk.id === accA?.bankId)
+        const bankB = DEFAULT_BANKS.find((bk) => bk.id === accB?.bankId)
+        const nameA = bankA?.name || accA?.name || ''
+        const nameB = bankB?.name || accB?.name || ''
+        const cmp = nameA.localeCompare(nameB, 'fa')
+        if (cmp !== 0) return sortDir === 'asc' ? cmp : -cmp
+        return (b.createdAt || b.id || '').localeCompare(a.createdAt || a.id || '')
+      })
+    }
+    return items
+  }, [filtered, sortField, sortDir, accounts])
   const total = filtered.reduce((s, e) => s + Number(e.amount || 0), 0)
 
   // Sort customers by transaction count for the selector
@@ -161,13 +190,12 @@ export default function ExpensesPage() {
 
       <FilterBar filter={filter} onChange={setFilter} selectedMonth={selectedMonth} onMonthSelect={setSelectedMonth} />
 
-      <div className="flex items-center justify-between">
-        <div className="card p-3 flex-1 mr-2 bg-gradient-to-l from-red-50 to-white dark:from-red-900/20 dark:to-slate-800/80">
-          <p className="text-sm text-slate-500 dark:text-slate-400">مجموع هزینه‌ها</p>
-          <p className="text-xl font-bold text-red-600 dark:text-red-400 mt-0.5">{formatAmount(total, currency)}</p>
-        </div>
-        <SortButton sortDir={sortDir} onChange={setSortDir} />
+      <div className="card p-3 bg-gradient-to-l from-red-50 to-white dark:from-red-900/20 dark:to-slate-800/80">
+        <p className="text-sm text-slate-500 dark:text-slate-400">مجموع هزینه‌ها</p>
+        <p className="text-xl font-bold text-red-600 dark:text-red-400 mt-0.5">{formatAmount(total, currency)}</p>
       </div>
+
+      <SortBar sortField={sortField} sortDir={sortDir} onChange={(f, d) => { setSortField(f); setSortDir(d) }} />
 
       <div className="space-y-2">
         {sorted.length === 0 && (
