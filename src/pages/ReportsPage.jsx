@@ -1,161 +1,155 @@
-import { useState, useMemo } from 'react'
-import { ChartBar as BarChart3, TrendingUp, TrendingDown } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import {
-  formatAmount, formatJalaliLong, filterByDateRange,
-  parseJalaliString, toPersianDigits, getJalaliMonths, getJalaliMonthRange, todayJalali
-} from '../lib/jalali'
-import JalaliDatePicker from '../components/JalaliDatePicker'
+import { useMemo, useState } from 'react'
+import { TrendingUp, TrendingDown, Wallet, PieChart as PieIcon } from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } from 'recharts'
+import { filterByDate, formatAmount, getJalaliMonths, todayJalali } from '../lib/jalali'
+
+const CHART_COLORS = ['#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed', '#0891b2', '#4f46e5', '#be123c', '#0369a1', '#9333ea', '#65a30d', '#c026d3']
 
 export default function ReportsPage({ store }) {
   const { revenues, expenses, settings } = store
-  const currency = settings.currency
+  const [filter, setFilter] = useState('monthly')
+  const [selectedMonth, setSelectedMonth] = useState(null)
 
-  const [reportType, setReportType] = useState('monthly') // 'monthly' | 'comparative'
-  const [chartMode, setChartMode] = useState('revenue') // 'revenue' | 'expense'
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const filteredRev = useMemo(() => filterByDate(revenues, filter, 'date', selectedMonth), [revenues, filter, selectedMonth])
+  const filteredExp = useMemo(() => filterByDate(expenses, filter, 'date', selectedMonth), [expenses, filter, selectedMonth])
 
-  const months = getJalaliMonths()
-  const [currentYear] = todayJalali()
+  const totalRev = useMemo(() => filteredRev.reduce((s, r) => s + Number(r.amount || 0), 0), [filteredRev])
+  const totalExp = useMemo(() => filteredExp.reduce((s, e) => s + Number(e.amount || 0), 0), [filteredExp])
+  const balance = totalRev - totalExp
 
-  // Default to current year range
-  const effectiveStart = startDate || `${currentYear}/01/01`
-  const effectiveEnd = endDate || `${currentYear}/12/30`
+  const expenseByCategory = useMemo(() => {
+    const cats = {}
+    filteredExp.forEach((e) => {
+      const key = e.category === 'bills' ? (e.billId || 'bills') : 'payment'
+      cats[key] = (cats[key] || 0) + Number(e.amount || 0)
+    })
+    return Object.entries(cats).map(([name, value]) => ({ name: name === 'payment' ? 'پرداختی' : 'قبوض', value }))
+  }, [filteredExp])
 
-  const filteredRevenues = useMemo(() =>
-    filterByDateRange(revenues, effectiveStart, effectiveEnd, 'date'),
-    [revenues, effectiveStart, effectiveEnd]
-  )
+  const expenseByAccount = useMemo(() => {
+    const accs = {}
+    filteredExp.forEach((e) => {
+      if (!e.accountId) return
+      accs[e.accountId] = (accs[e.accountId] || 0) + Number(e.amount || 0)
+    })
+    return Object.entries(accs).map(([id, value]) => {
+      const acc = store.accounts.find((a) => a.id === id)
+      return { name: acc?.name || 'نامشخص', value }
+    }).sort((a, b) => b.value - a.value).slice(0, 6)
+  }, [filteredExp, store.accounts])
 
-  const filteredExpenses = useMemo(() =>
-    filterByDateRange(expenses, effectiveStart, effectiveEnd, 'date'),
-    [expenses, effectiveStart, effectiveEnd]
-  )
-
-  // Group by Jalali month
   const monthlyData = useMemo(() => {
-    const data = {}
+    const [ty] = todayJalali()
+    const months = []
     for (let m = 1; m <= 12; m++) {
-      data[m] = { month: months[m - 1], revenue: 0, expense: 0 }
+      const rev = revenues.filter((r) => { const [jy, jm] = r.date.split('/').map(Number); return jy === ty && jm === m }).reduce((s, r) => s + Number(r.amount || 0), 0)
+      const exp = expenses.filter((e) => { const [jy, jm] = e.date.split('/').map(Number); return jy === ty && jm === m }).reduce((s, e) => s + Number(e.amount || 0), 0)
+      months.push({ name: getJalaliMonths()[m - 1].slice(0, 3), درآمد: rev, هزینه: exp })
     }
-    filteredRevenues.forEach((r) => {
-      const [, jm] = parseJalaliString(r.date)
-      if (jm >= 1 && jm <= 12) data[jm].revenue += Number(r.amount || 0)
-    })
-    filteredExpenses.forEach((e) => {
-      const [, jm] = parseJalaliString(e.date)
-      if (jm >= 1 && jm <= 12) data[jm].expense += Number(e.amount || 0)
-    })
-    return Object.values(data).filter((d) => d.revenue > 0 || d.expense > 0)
-  }, [filteredRevenues, filteredExpenses, months])
+    return months
+  }, [revenues, expenses])
 
-  const totalRevenue = filteredRevenues.reduce((s, r) => s + Number(r.amount || 0), 0)
-  const totalExpense = filteredExpenses.reduce((s, e) => s + Number(e.amount || 0), 0)
-
-  const formatTooltipValue = (val) => {
-    const v = currency === 'toman' ? Math.round(val / 10) : val
-    return toPersianDigits(v.toLocaleString('en-US'))
-  }
+  const cur = settings.currency
+  const fmt = (n) => formatAmount(n, cur)
 
   return (
-    <div className="px-4 py-4 pb-24">
-      <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">گزارشات</h1>
+    <div className="space-y-4">
+      <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">گزارش‌ها</h1>
 
-      {/* Report type selector */}
-      <div className="card p-3 mb-3">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setReportType('monthly')}
-            className={`chip flex-1 justify-center ${reportType === 'monthly' ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
-          >
-            گزارش ماهیانه
-          </button>
-          <button
-            onClick={() => setReportType('comparative')}
-            className={`chip flex-1 justify-center ${reportType === 'comparative' ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
-          >
-            گزارش مقایسه‌ای
-          </button>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="card p-3 text-center">
+          <TrendingUp size={20} className="mx-auto text-green-500 mb-1" />
+          <p className="text-xs text-slate-500 dark:text-slate-400">درآمد</p>
+          <p className="font-bold text-green-600 dark:text-green-400 amount-text">{fmt(totalRev)}</p>
+        </div>
+        <div className="card p-3 text-center">
+          <TrendingDown size={20} className="mx-auto text-red-500 mb-1" />
+          <p className="text-xs text-slate-500 dark:text-slate-400">هزینه</p>
+          <p className="font-bold text-red-600 dark:text-red-400 amount-text">{fmt(totalExp)}</p>
+        </div>
+        <div className="card p-3 text-center">
+          <Wallet size={20} className="mx-auto text-brand-500 mb-1" />
+          <p className="text-xs text-slate-500 dark:text-slate-400">مانده</p>
+          <p className={`font-bold amount-text ${balance >= 0 ? 'text-brand-600 dark:text-brand-400' : 'text-amber-600 dark:text-amber-400'}`}>{fmt(balance)}</p>
         </div>
       </div>
 
-      {/* Date range */}
-      <div className="card p-3 mb-3">
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">از تاریخ</label>
-            <JalaliDatePicker value={startDate} onChange={setStartDate} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">تا تاریخ</label>
-            <JalaliDatePicker value={endDate} onChange={setEndDate} />
-          </div>
-        </div>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        {[{ v: 'all', l: 'همه' }, { v: 'monthly', l: 'این ماه' }, { v: 'yearly', l: 'امسال' }].map((opt) => (
+          <button key={opt.v} onClick={() => setFilter(opt.v)} className={`chip ${filter === opt.v ? 'bg-brand-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
+            {opt.l}
+          </button>
+        ))}
       </div>
 
-      {/* Monthly report mode selector */}
-      {reportType === 'monthly' && (
-        <div className="card p-3 mb-3">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setChartMode('revenue')}
-              className={`chip flex-1 justify-center ${chartMode === 'revenue' ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
-            >
-              درآمد
-            </button>
-            <button
-              onClick={() => setChartMode('expense')}
-              className={`chip flex-1 justify-center ${chartMode === 'expense' ? 'bg-red-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}
-            >
-              هزینه
-            </button>
+      {monthlyData.some((d) => d.درآمد > 0 || d.هزینه > 0) && (
+        <div className="card p-4">
+          <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-3">نمودار ماهانه</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={monthlyData}>
+              <XAxis dataKey="name" tick={{ fontSize: 11, fontFamily: 'Vazirmatn' }} />
+              <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontFamily: 'Vazirmatn', borderRadius: '0.75rem', fontSize: '0.75rem' }} />
+              <Bar dataKey="درآمد" fill="#059669" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="هزینه" fill="#dc2626" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {expenseByCategory.length > 0 && (
+        <div className="card p-4">
+          <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-3">هزینه بر اساس دسته</h3>
+          <div className="flex items-center gap-4">
+            <ResponsiveContainer width="50%" height={160}>
+              <PieChart>
+                <Pie data={expenseByCategory} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={2}>
+                  {expenseByCategory.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={(v) => fmt(v)} contentStyle={{ fontFamily: 'Vazirmatn', borderRadius: '0.75rem', fontSize: '0.75rem' }} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex-1 space-y-1.5">
+              {expenseByCategory.map((item, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                  <span className="flex-1 text-slate-600 dark:text-slate-300">{item.name}</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-100 amount-text">{fmt(item.value)}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="card p-3">
-          <p className="text-xs text-slate-500 dark:text-slate-400">مجموع درآمد</p>
-          <p className="text-sm font-bold text-brand-600 dark:text-brand-400 mt-0.5 tabular-nums">{formatAmount(totalRevenue, currency)}</p>
-        </div>
-        <div className="card p-3">
-          <p className="text-xs text-slate-500 dark:text-slate-400">مجموع هزینه</p>
-          <p className="text-sm font-bold text-red-600 dark:text-red-400 mt-0.5 tabular-nums">{formatAmount(totalExpense, currency)}</p>
-        </div>
-      </div>
-
-      {/* Chart */}
-      <div className="card p-4 mb-4">
-        {monthlyData.length === 0 ? (
-          <div className="text-center text-slate-400 py-8">
-            <BarChart3 size={40} className="mx-auto mb-2 opacity-50" />
-            <p>داده‌ای برای نمایش وجود ندارد</p>
+      {expenseByAccount.length > 0 && (
+        <div className="card p-4">
+          <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-3">هزینه بر اساس حساب</h3>
+          <div className="space-y-2">
+            {expenseByAccount.map((item, i) => {
+              const max = expenseByAccount[0].value
+              const pct = max > 0 ? (item.value / max) * 100 : 0
+              return (
+                <div key={i}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-slate-600 dark:text-slate-300">{item.name}</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-100 amount-text">{fmt(item.value)}</span>
+                  </div>
+                  <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                  </div>
+                </div>
+              )
+            })}
           </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyData}>
-              <XAxis dataKey="month" tick={{ fontSize: 11, fontFamily: 'Vazirmatn' }} />
-              <YAxis tickFormatter={(v) => toPersianDigits(Math.round(v / 1000000)) + 'M'} tick={{ fontSize: 10 }} />
-              <Tooltip formatter={(val) => formatTooltipValue(val)} labelStyle={{ fontFamily: 'Vazirmatn' }} />
-              {reportType === 'comparative' && <Legend />}
-              {reportType === 'monthly' && chartMode === 'revenue' && (
-                <Bar dataKey="revenue" fill="#2563eb" name="درآمد" radius={[4, 4, 0, 0]} />
-              )}
-              {reportType === 'monthly' && chartMode === 'expense' && (
-                <Bar dataKey="expense" fill="#dc2626" name="هزینه" radius={[4, 4, 0, 0]} />
-              )}
-              {reportType === 'comparative' && (
-                <>
-                  <Bar dataKey="revenue" fill="#2563eb" name="درآمد" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expense" fill="#dc2626" name="هزینه" radius={[4, 4, 0, 0]} />
-                </>
-              )}
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+        </div>
+      )}
+
+      {filteredRev.length === 0 && filteredExp.length === 0 && (
+        <div className="card p-8 text-center">
+          <PieIcon size={40} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+          <p className="text-slate-500 dark:text-slate-400">داده‌ای برای نمایش گزارش وجود ندارد</p>
+        </div>
+      )}
     </div>
   )
 }

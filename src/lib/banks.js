@@ -1,7 +1,4 @@
 // Bank definitions and SVG logo mapping
-// SVG files live in public/banks/ and are referenced via import.meta.env.BASE_URL
-// so they work in both Vite dev and Capacitor Android WebView.
-
 export const DEFAULT_BANKS = [
   { id: 'melli', name: 'بانک ملی ایران', svg: 'melli.svg' },
   { id: 'mellat', name: 'بانک ملت', svg: 'mellat.svg' },
@@ -58,30 +55,9 @@ export function getBankSvgUrl(svg) {
   return `${prefix}banks/${svg}`
 }
 
-export function findBankById(banks, id) {
-  return banks.find((b) => b.id === id)
-}
+export function findBankById(banks, id) { return banks.find((b) => b.id === id) }
+export function findBankName(banks, id, customBankName) { if (id === 'other' || !id) return customBankName || 'سایر'; const bank = findBankById(banks, id); return bank ? bank.name : customBankName || 'سایر' }
+export function getBankInitial(name) { return name ? name.charAt(0) : '؟' }
 
-export function findBankName(banks, id, customBankName) {
-  if (id === 'other' || !id) return customBankName || 'سایر'
-  const bank = findBankById(banks, id)
-  return bank ? bank.name : customBankName || 'سایر'
-}
-
-// Get Persian initial for fallback circle
-export function getBankInitial(name) {
-  if (!name) return '؟'
-  return name.charAt(0)
-}
-
-// Distinct colors for fallback circles
-const FALLBACK_COLORS = [
-  '#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed',
-  '#0891b2', '#4f46e5', '#be123c', '#0369a1', '#9333ea'
-]
-
-export function getBankColor(id) {
-  if (!id) return FALLBACK_COLORS[0]
-  const hash = id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-  return FALLBACK_COLORS[hash % FALLBACK_COLORS.length]
-}
+const FALLBACK_COLORS = ['#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed', '#0891b2', '#4f46e5', '#be123c', '#0369a1', '#9333ea']
+export function getBankColor(id) { if (!id) return FALLBACK_COLORS[0]; const hash = id.split('').reduce((a, c) => a + c.charCodeAt(0), 0); return FALLBACK_COLORS[hash % FALLBACK_COLORS.length] }

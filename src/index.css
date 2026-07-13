@@ -7,26 +7,11 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-* {
-  -webkit-tap-highlight-color: transparent;
-}
+* { -webkit-tap-highlight-color: transparent; }
+html { font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif; }
+body { margin: 0; min-height: 100dvh; background: #f0f4f8; overflow-x: hidden; }
+html.dark body { background: #0f172a; }
 
-html {
-  font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
-}
-
-body {
-  margin: 0;
-  min-height: 100dvh;
-  background: #f0f4f8;
-  overflow-x: hidden;
-}
-
-html.dark body {
-  background: #0f172a;
-}
-
-/* Soft gradient wallpaper */
 .app-bg {
   background:
     radial-gradient(at 20% 0%, rgba(191, 219, 254, 0.4) 0px, transparent 50%),
@@ -34,7 +19,6 @@ html.dark body {
     linear-gradient(180deg, #f0f4f8 0%, #e2e8f0 100%);
   min-height: 100dvh;
 }
-
 html.dark .app-bg {
   background:
     radial-gradient(at 20% 0%, rgba(30, 58, 138, 0.3) 0px, transparent 50%),
@@ -42,56 +26,18 @@ html.dark .app-bg {
     linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
 }
 
-/* Hide scrollbar but keep scrollable */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Card */
 @layer components {
-  .card {
-    @apply bg-white dark:bg-slate-800 rounded-2xl shadow-soft border border-slate-100 dark:border-slate-700;
-  }
-
-  .btn-primary {
-    @apply bg-brand-600 text-white font-semibold py-2.5 px-4 rounded-xl transition active:scale-95 hover:bg-brand-700;
-  }
-
-  .btn-danger {
-    @apply bg-red-600 text-white font-semibold py-2.5 px-4 rounded-xl transition active:scale-95 hover:bg-red-700;
-  }
-
-  .btn-ghost {
-    @apply bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-2.5 px-4 rounded-xl transition active:scale-95 hover:bg-slate-200 dark:hover:bg-slate-600;
-  }
-
-  .input-field {
-    @apply w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-300 transition;
-  }
-
-  .chip {
-    @apply inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition active:scale-95;
-  }
+  .card { @apply bg-white dark:bg-slate-800 rounded-2xl shadow-soft border border-slate-100 dark:border-slate-700; }
+  .btn-primary { @apply bg-brand-600 text-white font-semibold py-2.5 px-4 rounded-xl transition active:scale-95 hover:bg-brand-700; }
+  .btn-danger { @apply bg-red-600 text-white font-semibold py-2.5 px-4 rounded-xl transition active:scale-95 hover:bg-red-700; }
+  .btn-ghost { @apply bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold py-2.5 px-4 rounded-xl transition active:scale-95 hover:bg-slate-200 dark:hover:bg-slate-600; }
+  .input-field { @apply w-full bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-300 transition; }
+  .chip { @apply inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition active:scale-95; }
 }
 
-/* Tabular numbers for amounts */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum';
-}
-
-/* Responsive amount font */
-.amount-text {
-  font-size: clamp(0.875rem, 3.5vw, 1rem);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Prevent text wrapping on important values */
-.no-wrap {
-  white-space: nowrap;
-}
+.tabular-nums { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+.amount-text { font-size: clamp(0.875rem, 3.5vw, 1rem); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.no-wrap { white-space: nowrap; }
