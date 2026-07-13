@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import DatePicker from 'react-multi-date-picker'
+import DateObject from 'react-date-object'
 import persian from 'react-date-object/calendars/persian'
 import persian_fa from 'react-date-object/locales/persian_fa'
 import { parseJalaliString, todayJalaliString } from '../lib/jalali'
@@ -18,9 +19,7 @@ export default function JalaliDatePicker({ value, onChange }) {
     // Build the picker value from our stored Jalali string "YYYY/MM/DD"
     if (value) {
       const [jy, jm, jd] = parseJalaliString(value)
-      // Create a DateObject with Persian calendar
-      // react-date-object accepts { year, month, day, calendar, locale }
-      const dateObj = new (require('react-date-object'))({
+      const dateObj = new DateObject({
         year: jy,
         month: jm,
         day: jd,
@@ -31,7 +30,7 @@ export default function JalaliDatePicker({ value, onChange }) {
     } else {
       // Default to today
       const [jy, jm, jd] = parseJalaliString(todayJalaliString())
-      const dateObj = new (require('react-date-object'))({
+      const dateObj = new DateObject({
         year: jy,
         month: jm,
         day: jd,
