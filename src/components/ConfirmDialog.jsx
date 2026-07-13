@@ -1,27 +1,13 @@
-import { useEffect } from 'react'
+import Modal from './Modal'
 
-export default function ConfirmDialog({ open, onDiscard, onCancel, onSave }) {
-  useEffect(() => {
-    if (!open) return
-    const handler = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCancel() } }
-    window.addEventListener('keydown', handler, true)
-    return () => window.removeEventListener('keydown', handler, true)
-  }, [open, onCancel])
-
-  if (!open) return null
-
+export default function ConfirmDialog({ open, title, message, confirmText = 'تایید', cancelText = 'انصراف', onConfirm, onCancel, danger = false }) {
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative w-full max-w-sm bg-white dark:bg-slate-800 rounded-2xl shadow-card p-5 animate-scaleIn">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 text-center mb-2">ذخیره تغییرات؟</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-5 leading-relaxed">تغییراتی که انجام دادید ذخیره نشده. آیا می‌خواهید ذخیره کنید؟</p>
-        <div className="space-y-2">
-          <button onClick={onSave} className="btn-primary w-full">ذخیره</button>
-          <button onClick={onDiscard} className="btn-danger w-full">ذخیره نکن</button>
-          <button onClick={onCancel} className="btn-ghost w-full">انصراف</button>
-        </div>
+    <Modal open={open} onClose={onCancel} title={title} size="sm">
+      <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-5">{message}</p>
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="btn-ghost flex-1">{cancelText}</button>
+        <button onClick={onConfirm} className={danger ? 'btn-danger flex-1' : 'btn-primary flex-1'}>{confirmText}</button>
       </div>
-    </div>
+    </Modal>
   )
 }

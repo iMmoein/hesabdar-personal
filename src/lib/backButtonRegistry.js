@@ -1,12 +1,22 @@
-// Simple stack-based registry for Android back button handlers.
+// Back button handler registry
+// Allows nested components (date picker, modals, forms) to register
+// handlers that take priority over the root-level exit dialog.
+
 let stack = []
+let listeners = new Set()
+
+function notify() {
+  listeners.forEach((fn) => fn())
+}
 
 export function pushBackHandler(handler) {
   stack.push(handler)
+  notify()
 }
 
 export function popBackHandler() {
-  return stack.pop() || null
+  stack.pop()
+  notify()
 }
 
 export function getTopBackHandler() {
@@ -15,4 +25,10 @@ export function getTopBackHandler() {
 
 export function clearBackStack() {
   stack = []
+  notify()
+}
+
+export function subscribeBackStack(fn) {
+  listeners.add(fn)
+  return () => listeners.delete(fn)
 }

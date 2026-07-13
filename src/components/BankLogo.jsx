@@ -1,52 +1,42 @@
-import { useState } from 'react'
-import { Landmark } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { getBankSvgUrl, getBankInitial, getBankColor } from '../lib/banks'
 
-function resolveLogo(logo) {
-  if (!logo) return ''
-  if (/^(https?:|file:|data:)/.test(logo)) return logo
-  const clean = logo.replace(/^\/+/, '')
-  return import.meta.env.BASE_URL + clean
-}
-
+// BankLogo: renders SVG from public/banks/ with fallback colored circle
+// Uses import.meta.env.BASE_URL for Capacitor-safe paths
 export default function BankLogo({ bank, size = 40 }) {
-  const [imgError, setImgError] = useState(false)
+  const [svgError, setSvgError] = useState(false)
+  const svgUrl = bank?.svg ? getBankSvgUrl(bank.svg) : null
 
-  if (!bank || !bank.logo || bank.id === 'other' || imgError) {
-    if (bank && bank.id === 'other') {
-      return (
-        <div className="flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-300 shrink-0" style={{ width: size, height: size }}>
-          <Landmark size={size * 0.5} />
-        </div>
-      )
-    }
-    if (bank) {
-      const color = bank.color || '#607d8b'
-      const darker = shadeColor(color, -30)
-      return (
-        <div className="flex items-center justify-center rounded-full font-bold text-white shadow-sm shrink-0" style={{ width: size, height: size, fontSize: size * 0.42, background: `linear-gradient(135deg, ${color}, ${darker})` }}>
-          {bank.short || bank.name?.charAt(0) || '؟'}
-        </div>
-      )
-    }
-    return (
-      <div className="flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-400 shrink-0" style={{ width: size, height: size }}>
-        <Landmark size={size * 0.5} />
-      </div>
-    )
+  useEffect(() => {
+    setSvgError(false)
+  }, [bank?.id, bank?.svg])
+
+  const fallback = (
+    <div
+      className="rounded-full flex items-center justify-center text-white font-bold shrink-0"
+      style={{ width: size, height: size, backgroundColor: getBankColor(bank?.id), fontSize: size * 0.4 }}
+    >
+      {getBankInitial(bank?.name)}
+    </div>
+  )
+
+  if (!svgUrl || svgError || bank?.id === 'other' || !bank?.svg) {
+    return fallback
   }
 
   return (
-    <div className="flex items-center justify-center rounded-full dark:bg-white dark:p-1 shrink-0" style={{ width: size, height: size }}>
-      <img src={resolveLogo(bank.logo)} alt={bank.name} className="w-full h-full object-contain" onError={() => setImgError(true)} />
+    <div
+      className="rounded-full overflow-hidden flex items-center justify-center shrink-0 bg-white dark:bg-slate-100 p-1"
+      style={{ width: size, height: size }}
+    >
+      <img
+        src={svgUrl}
+        alt={bank?.name || 'bank'}
+        width={size - 8}
+        height={size - 8}
+        onError={() => setSvgError(true)}
+        className="max-w-full max-h-full object-contain"
+      />
     </div>
   )
-}
-
-function shadeColor(hex, percent) {
-  const num = parseInt(hex.replace('#', ''), 16)
-  const amt = Math.round(2.55 * percent)
-  const R = Math.max(0, Math.min(255, (num >> 16) + amt))
-  const G = Math.max(0, Math.min(255, ((num >> 8) & 0x00ff) + amt))
-  const B = Math.max(0, Math.min(255, (num & 0x0000ff) + amt))
-  return `#${((1 << 24) + (R << 16) + (G << 8) + B).toString(16).slice(1)}`
 }

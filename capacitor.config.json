@@ -1,5 +1,9 @@
-{
-  "appId": "com.hesabdar.personal",
-  "appName": "حسابدار شخصی",
-  "webDir": "dist"
+import { CapacitorConfig } from '@capacitor/cli'
+
+const config = {
+  appId: 'com.hesabdar.personal',
+  appName: 'حسابدار شخصی',
+  webDir: 'dist'
 }
+
+export default config

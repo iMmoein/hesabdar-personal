@@ -1,61 +1,265 @@
-import { useState, useMemo } from 'react'
-import { Plus, Trash2, Receipt, Wallet, Clock, Pencil } from 'lucide-react'
-import { useStore, DEFAULT_BANKS, DEFAULT_BILL_NAMES } from '../lib/store'
-import { formatAmount, formatJalaliLong, todayJalaliString, filterByDate, sortByDate, toPersianDigits } from '../lib/jalali'
+import { useState, useMemo, useEffect } from 'react'
+import { Plus, Pencil, Trash2, Receipt, Wallet, Clock, Tag, FileText, User } from 'lucide-react'
+import {
+  formatAmount, formatJalaliWithWeekday, formatJalaliLong, todayJalaliString,
+  filterByDate, toPersianDigits, currentTimeString
+} from '../lib/jalali'
 import Modal from '../components/Modal'
+import ConfirmDialog from '../components/ConfirmDialog'
+import UnsavedDialog from '../components/UnsavedDialog'
 import BankLogo from '../components/BankLogo'
 import FilterBar from '../components/FilterBar'
 import SortBar from '../components/SortBar'
 import AmountInput from '../components/AmountInput'
 import JalaliDatePicker from '../components/JalaliDatePicker'
-import ConfirmActionDialog from '../components/ConfirmActionDialog'
+import { EXPENSE_CATEGORIES, DEFAULT_BILLS } from '../lib/banks'
+import { pushBackHandler, popBackHandler } from '../lib/backButtonRegistry'
 
-// Sort customers by transaction count (desc), then alphabetically
-function sortCustomersByTxCount(customers, expenses) {
-  return [...customers].map((c) => {
-    const count = expenses.filter((e) => e.customerId === c.id).length
-    return { ...c, _txCount: count }
-  }).sort((a, b) => {
-    if (b._txCount !== a._txCount) return b._txCount - a._txCount
-    return a.name.localeCompare(b.name, 'fa')
-  })
-}
-
-export default function ExpensesPage() {
+export default function ExpensesPage({ store }) {
   const {
-    expenses, accounts, categories, billNames, customers, currency,
-    addExpense, updateExpense, deleteExpense, addAccount, addCategory,
-    addBillName, deleteBillName, isBillNameDuplicate, addCustomer, isCustomerNameDuplicate
-  } = useStore()
+    expenses, allBanks, allBills, customers, customBills,
+    addExpense, updateExpense, deleteExpense,
+    addCustomBill, deleteCustomBill, addCustomBank, settings
+  } = store
+  const currency = settings.currency
 
   const [showForm, setShowForm] = useState(false)
-  const [showBankPicker, setShowBankPicker] = useState(false)
-  const [showAddCategory, setShowAddCategory] = useState(false)
-  const [showBillManager, setShowBillManager] = useState(false)
-  const [showAddCustomer, setShowAddCustomer] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [filter, setFilter] = useState('all')
   const [selectedMonth, setSelectedMonth] = useState(null)
   const [sortField, setSortField] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
-  const [editingId, setEditingId] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteId, setDeleteId] = useState(null)
   const [editConfirm, setEditConfirm] = useState(false)
-  const [billError, setBillError] = useState('')
-  const [customerError, setCustomerError] = useState('')
 
-  const [amount, setAmount] = useState('')
-  const [categoryId, setCategoryId] = useState('')
-  const [accountId, setAccountId] = useState('')
-  const [date, setDate] = useState(todayJalaliString())
-  const [time, setTime] = useState('')
-  const [description, setDescription] = useState('')
-  const [customerId, setCustomerId] = useState('')
-  const [billNameId, setBillNameId] = useState('')
+  // Form state
+  const [formAmount, setFormAmount] = useState('')
+  const [formCategory, setFormCategory] = useState('payment')
+  const [formCustomerId, setFormCustomerId] = useState('')
+  const [formCustomerName, setFormCustomerName] = useState('')
+  const [formBillId, setFormBillId] = useState('')
+  const [formBillName, setFormBillName] = useState('')
+  const [formSourceBankId, setFormSourceBankId] = useState('')
+  const [formSourceBankName, setFormSourceBankName] = useState('')
+  const [formCustomBankName, setFormCustomBankName] = useState('')
+  const [formDate, setFormDate] = useState(todayJalaliString())
+  const [formTime, setFormTime] = useState(currentTimeString())
+  const [formDescription, setFormDescription] = useState('')
+  const [formDirty, setFormDirty] = useState(false)
+  const [showUnsaved, setShowUnsaved] = useState(false)
 
-  const [newCategoryName, setNewCategoryName] = useState('')
-  const [newBillName, setNewBillName] = useState('')
-  const [newCustomerName, setNewCustomerName] = useState('')
+  // Sub-modals
+  const [showBankSelect, setShowBankSelect] = useState(false)
+  const [showCustomerSelect, setShowCustomerSelect] = useState(false)
+  const [showBillSelect, setShowBillSelect] = useState(false)
+  const [showCustomBillInput, setShowCustomBillInput] = useState(false)
+  const [customBillNameInput, setCustomBillNameInput] = useState('')
+  const [showCustomBankInput, setShowCustomBankInput] = useState(false)
+  const [customBankNameInput, setCustomBankNameInput] = useState('')
+  const [billDeleteId, setBillDeleteId] = useState(null)
 
+  const [initialFormState, setInitialFormState] = useState({})
+
+  const resetForm = () => {
+    setFormAmount('')
+    setFormCategory('payment')
+    setFormCustomerId('')
+    setFormCustomerName('')
+    setFormBillId('')
+    setFormBillName('')
+    setFormSourceBankId('')
+    setFormSourceBankName('')
+    setFormCustomBankName('')
+    setFormDate(todayJalaliString())
+    setFormTime(currentTimeString())
+    setFormDescription('')
+    setFormDirty(false)
+    setShowBankSelect(false)
+    setShowCustomerSelect(false)
+    setShowBillSelect(false)
+    setShowCustomBillInput(false)
+    setShowCustomBankInput(false)
+    setCustomBillNameInput('')
+    setCustomBankNameInput('')
+  }
+
+  const openAddForm = () => {
+    resetForm()
+    setEditingId(null)
+    setShowForm(true)
+  }
+
+  const openEditForm = (item) => {
+    setFormAmount(item.amount || '')
+    setFormCategory(item.category || 'payment')
+    setFormCustomerId(item.customerId || '')
+    setFormCustomerName(item.customerName || '')
+    setFormBillId(item.billId || '')
+    setFormBillName(item.billName || '')
+    setFormSourceBankId(item.sourceBankId || '')
+    setFormSourceBankName(item.sourceBankName || '')
+    setFormCustomBankName(item.customBankName || '')
+    setFormDate(item.date || todayJalaliString())
+    setFormTime(item.time || currentTimeString())
+    setFormDescription(item.description || '')
+    setFormDirty(false)
+    setEditingId(item.id)
+    setShowForm(true)
+  }
+
+  // Track dirty
+  useEffect(() => {
+    if (!showForm) return
+    const current = {
+      amount: formAmount, category: formCategory, customerId: formCustomerId,
+      billId: formBillId, sourceBankId: formSourceBankId, customBankName: formCustomBankName,
+      date: formDate, time: formTime, description: formDescription
+    }
+    const isDirty = Object.keys(current).some((k) => current[k] !== initialFormState[k])
+    setFormDirty(isDirty)
+  }, [formAmount, formCategory, formCustomerId, formBillId, formSourceBankId, formCustomBankName, formDate, formTime, formDescription, showForm, initialFormState])
+
+  useEffect(() => {
+    if (showForm) {
+      setInitialFormState({
+        amount: formAmount, category: formCategory, customerId: formCustomerId,
+        billId: formBillId, sourceBankId: formSourceBankId, customBankName: formCustomBankName,
+        date: formDate, time: formTime, description: formDescription
+      })
+    }
+  }, [showForm])
+
+  // Back button for form
+  useEffect(() => {
+    if (!showForm) return
+    pushBackHandler(() => {
+      if (formDirty) {
+        setShowUnsaved(true)
+      } else {
+        setShowForm(false)
+      }
+    })
+    return () => popBackHandler()
+  }, [showForm, formDirty])
+
+  // Back button for sub-modals
+  useEffect(() => {
+    if (!showBankSelect && !showCustomerSelect && !showBillSelect && !showCustomBillInput && !showCustomBankInput) return
+    pushBackHandler(() => {
+      if (showCustomBankInput) { setShowCustomBankInput(false); return }
+      if (showCustomBillInput) { setShowCustomBillInput(false); return }
+      if (showBillSelect) { setShowBillSelect(false); return }
+      if (showCustomerSelect) { setShowCustomerSelect(false); return }
+      if (showBankSelect) { setShowBankSelect(false); return }
+    })
+    return () => popBackHandler()
+  }, [showBankSelect, showCustomerSelect, showBillSelect, showCustomBillInput, showCustomBankInput])
+
+  const handleSave = () => {
+    if (!formAmount || Number(formAmount) <= 0) return
+    if (!formSourceBankId) return
+    if (formCategory === 'payment' && !formCustomerId) return
+    if (formCategory === 'bills' && !formBillId) return
+
+    const bank = allBanks.find((b) => b.id === formSourceBankId)
+    const customer = customers.find((c) => c.id === formCustomerId)
+    const bill = allBills.find((b) => b.id === formBillId)
+
+    const data = {
+      amount: Number(formAmount),
+      category: formCategory,
+      customerId: formCategory === 'payment' ? formCustomerId : '',
+      customerName: formCategory === 'payment' ? (customer?.name || formCustomerName) : '',
+      billId: formCategory === 'bills' ? formBillId : '',
+      billName: formCategory === 'bills' ? (bill?.name || formBillName) : '',
+      sourceBankId: formSourceBankId,
+      sourceBankName: bank?.name || formCustomBankName || '',
+      customBankName: formSourceBankId === 'other' ? formCustomBankName : '',
+      date: formDate,
+      time: formTime,
+      description: formDescription || ''
+    }
+
+    if (editingId) {
+      updateExpense(editingId, data)
+    } else {
+      addExpense(data)
+    }
+    setShowForm(false)
+    resetForm()
+  }
+
+  const handleEditConfirmSave = () => {
+    setEditConfirm(false)
+    handleSave()
+  }
+
+  const handleFormClose = () => {
+    if (formDirty) {
+      setShowUnsaved(true)
+    } else {
+      setShowForm(false)
+    }
+  }
+
+  const handleUnsavedSave = () => {
+    setShowUnsaved(false)
+    if (editingId) {
+      setEditConfirm(true)
+    } else {
+      handleSave()
+    }
+  }
+
+  const handleUnsavedDiscard = () => {
+    setShowUnsaved(false)
+    setShowForm(false)
+    resetForm()
+  }
+
+  const handleAddCustomBill = () => {
+    const name = customBillNameInput.trim()
+    if (!name) return
+    // Check duplicate
+    const exists = allBills.some((b) => b.name === name)
+    if (exists) {
+      alert('این قبض قبلاً وجود دارد')
+      return
+    }
+    const id = addCustomBill(name)
+    setFormBillId(id)
+    setFormBillName(name)
+    setShowCustomBillInput(false)
+    setCustomBillNameInput('')
+    setShowBillSelect(false)
+  }
+
+  const handleAddCustomBank = () => {
+    const name = customBankNameInput.trim()
+    if (!name) return
+    const id = addCustomBank(name)
+    setFormSourceBankId(id)
+    setFormCustomBankName(name)
+    setShowCustomBankInput(false)
+    setCustomBankNameInput('')
+    setShowBankSelect(false)
+  }
+
+  // Sort customers by transaction count descending
+  const sortedCustomers = useMemo(() => {
+    const counts = {}
+    expenses.forEach((e) => {
+      if (e.customerId) counts[e.customerId] = (counts[e.customerId] || 0) + 1
+    })
+    return [...customers].sort((a, b) => {
+      const ca = counts[a.id] || 0
+      const cb = counts[b.id] || 0
+      if (ca !== cb) return cb - ca
+      return a.name.localeCompare(b.name, 'fa')
+    })
+  }, [customers, expenses])
+
+  // Filter + sort
   const filtered = filterByDate(expenses, filter, 'date', selectedMonth)
   const sorted = useMemo(() => {
     const items = [...filtered]
@@ -63,276 +267,406 @@ export default function ExpensesPage() {
       items.sort((a, b) => {
         const cmp = (a.date || '').localeCompare(b.date || '')
         if (cmp !== 0) return sortDir === 'desc' ? -cmp : cmp
-        return (b.createdAt || b.id || '').localeCompare(a.createdAt || a.id || '')
+        return String(b.createdAt || b.id || '').localeCompare(String(a.createdAt || a.id || ''))
       })
     } else if (sortField === 'amount') {
       items.sort((a, b) => {
         const cmp = Number(a.amount || 0) - Number(b.amount || 0)
         if (cmp !== 0) return sortDir === 'desc' ? -cmp : cmp
-        return (b.createdAt || b.id || '').localeCompare(a.createdAt || a.id || '')
+        return String(b.createdAt || b.id || '').localeCompare(String(a.createdAt || a.id || ''))
       })
     } else if (sortField === 'bank') {
       items.sort((a, b) => {
-        const accA = accounts.find((acc) => acc.id === a.accountId)
-        const accB = accounts.find((acc) => acc.id === b.accountId)
-        const bankA = DEFAULT_BANKS.find((bk) => bk.id === accA?.bankId)
-        const bankB = DEFAULT_BANKS.find((bk) => bk.id === accB?.bankId)
-        const nameA = bankA?.name || accA?.name || ''
-        const nameB = bankB?.name || accB?.name || ''
+        const nameA = a.sourceBankName || a.customBankName || ''
+        const nameB = b.sourceBankName || b.customBankName || ''
         const cmp = nameA.localeCompare(nameB, 'fa')
         if (cmp !== 0) return sortDir === 'asc' ? cmp : -cmp
-        return (b.createdAt || b.id || '').localeCompare(a.createdAt || a.id || '')
+        return String(b.createdAt || b.id || '').localeCompare(String(a.createdAt || a.id || ''))
       })
     }
     return items
-  }, [filtered, sortField, sortDir, accounts])
+  }, [filtered, sortField, sortDir])
+
   const total = filtered.reduce((s, e) => s + Number(e.amount || 0), 0)
 
-  // Sort customers by transaction count for the selector
-  const sortedCustomers = useMemo(() => sortCustomersByTxCount(customers, expenses), [customers, expenses])
+  const selectedBank = allBanks.find((b) => b.id === formSourceBankId)
+  const selectedCustomer = customers.find((c) => c.id === formCustomerId)
+  const selectedBill = allBills.find((b) => b.id === formBillId)
 
-  const selectedCategory = categories.find((c) => c.id === categoryId)
-  const isPayment = selectedCategory?.id === 'payment' || selectedCategory?.name === 'پرداختی'
-  const isBills = selectedCategory?.id === 'bills' || selectedCategory?.name === 'قبوض'
-
-  // All bill options = default bills + custom bills
-  const allBills = useMemo(() => {
-    const defaults = DEFAULT_BILL_NAMES.map((name, idx) => ({ id: `default_bill_${idx}`, name, isDefault: true }))
-    const customs = billNames.map((b) => ({ id: b.id, name: b.name, isDefault: false }))
-    return [...defaults, ...customs]
-  }, [billNames])
-
-  const formDirty = useMemo(
-    () => Boolean(amount) || Boolean(categoryId) || Boolean(accountId) || date !== todayJalaliString() || Boolean(time) || Boolean(description) || Boolean(customerId) || Boolean(billNameId),
-    [amount, categoryId, accountId, date, time, description, customerId, billNameId]
-  )
-
-  const categoryDirty = useMemo(() => Boolean(newCategoryName.trim()), [newCategoryName])
-  const billDirty = useMemo(() => Boolean(newBillName.trim()), [newBillName])
-  const customerDirty = useMemo(() => Boolean(newCustomerName.trim()), [newCustomerName])
-
-  const resetForm = () => {
-    setAmount(''); setCategoryId(''); setAccountId(''); setDate(todayJalaliString())
-    setTime(''); setDescription(''); setCustomerId(''); setBillNameId(''); setEditingId(null)
+  const getExpenseTitle = (item) => {
+    if (item.category === 'payment') return item.customerName || 'پرداختی'
+    if (item.category === 'bills') return item.billName || 'قبض'
+    return item.category || 'هزینه'
   }
-
-  const openAddForm = () => { resetForm(); setShowForm(true) }
-
-  const openEditForm = (exp) => {
-    setEditingId(exp.id)
-    setAmount(exp.amount)
-    setCategoryId(exp.categoryId || '')
-    setAccountId(exp.accountId)
-    setDate(exp.date) // Jalali "YYYY/MM/DD" string
-    setTime(exp.time || '')
-    setDescription(exp.description || '')
-    setCustomerId(exp.customerId || '')
-    setBillNameId(exp.billNameId || '')
-    setShowForm(true)
-  }
-
-  const handleSubmit = () => {
-    if (!amount || !categoryId || !accountId) return
-    if (editingId) { setEditConfirm(true) }
-    else {
-      addExpense({ amount: Number(amount), categoryId, accountId, date, time, description, customerId: isPayment ? customerId : '', billNameId: isBills ? billNameId : '' })
-      resetForm(); setShowForm(false)
-    }
-  }
-
-  const confirmEdit = () => {
-    updateExpense(editingId, { amount: Number(amount), categoryId, accountId, date, time, description, customerId: isPayment ? customerId : '', billNameId: isBills ? billNameId : '' })
-    setEditConfirm(false); resetForm(); setShowForm(false)
-  }
-
-  const handleAddAccount = (bankId) => {
-    const bank = DEFAULT_BANKS.find((b) => b.id === bankId)
-    const acc = addAccount({ bankId, name: bank.name })
-    setAccountId(acc.id); setShowBankPicker(false)
-  }
-
-  const handleAddCategory = () => {
-    if (!newCategoryName.trim()) return
-    const cat = addCategory({ name: newCategoryName.trim() })
-    setCategoryId(cat.id); setNewCategoryName(''); setShowAddCategory(false)
-  }
-
-  const handleAddBill = () => {
-    if (!newBillName.trim()) return
-    if (isBillNameDuplicate(newBillName.trim())) {
-      setBillError('این قبض قبلاً وجود دارد')
-      setTimeout(() => setBillError(''), 3000)
-      return
-    }
-    const bill = addBillName(newBillName.trim())
-    setBillNameId(bill.id); setNewBillName('')
-  }
-
-  const handleAddCustomer = () => {
-    if (!newCustomerName.trim()) return
-    if (isCustomerNameDuplicate(newCustomerName.trim())) {
-      setCustomerError('این نام مشتری قبلاً ثبت شده است')
-      setTimeout(() => setCustomerError(''), 3000)
-      return
-    }
-    const cust = addCustomer({ name: newCustomerName.trim() })
-    setCustomerId(cust.id); setNewCustomerName(''); setCustomerError(''); setShowAddCustomer(false)
-  }
-
-  const confirmDelete = () => { if (deleteTarget) { deleteExpense(deleteTarget.id); setDeleteTarget(null) } }
 
   return (
-    <div className="px-4 pt-4 pb-28 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">هزینه‌ها</h1>
-        <button onClick={openAddForm} className="btn-primary"><Plus size={20} /> ثبت هزینه</button>
+    <div className="px-4 py-4 pb-24">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">هزینه‌ها</h1>
+        <button onClick={openAddForm} className="btn-primary flex items-center gap-1.5 text-sm">
+          <Plus size={18} />
+          ثبت هزینه جدید
+        </button>
       </div>
 
-      <FilterBar filter={filter} onChange={setFilter} selectedMonth={selectedMonth} onMonthSelect={setSelectedMonth} />
-
-      <div className="card p-3 bg-gradient-to-l from-red-50 to-white dark:from-red-900/20 dark:to-slate-800/80">
+      {/* Total card */}
+      <div className="card p-3 mb-3 bg-gradient-to-l from-red-50 to-white dark:from-red-900/20 dark:to-slate-800/80">
         <p className="text-sm text-slate-500 dark:text-slate-400">مجموع هزینه‌ها</p>
-        <p className="text-xl font-bold text-red-600 dark:text-red-400 mt-0.5">{formatAmount(total, currency)}</p>
+        <p className="text-xl font-bold text-red-600 dark:text-red-400 mt-0.5 tabular-nums">{formatAmount(total, currency)}</p>
       </div>
 
-      <SortBar sortField={sortField} sortDir={sortDir} onChange={(f, d) => { setSortField(f); setSortDir(d) }} />
+      {/* Sort bar */}
+      <div className="mb-3">
+        <SortBar sortField={sortField} sortDir={sortDir} onChange={(f, d) => { setSortField(f); setSortDir(d) }} />
+      </div>
 
+      {/* Filter bar */}
+      <div className="mb-3">
+        <FilterBar filter={filter} setFilter={setFilter} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} />
+      </div>
+
+      {/* Expense list */}
       <div className="space-y-2">
-        {sorted.length === 0 && (
-          <div className="card p-8 text-center text-slate-400"><Receipt size={40} className="mx-auto mb-2 opacity-40" /><p>هنوز هزینه‌ای ثبت نشده است</p></div>
-        )}
-        {sorted.map((exp) => {
-          const acc = accounts.find((a) => a.id === exp.accountId)
-          const bank = DEFAULT_BANKS.find((b) => b.id === acc?.bankId)
-          const cat = categories.find((c) => c.id === exp.categoryId)
-          const cust = customers.find((c) => c.id === exp.customerId)
-          const bill = allBills.find((b) => b.id === exp.billNameId)
-          return (
-            <div key={exp.id} className="card p-3 flex items-center gap-3">
-              <button onClick={() => openEditForm(exp)} className="flex items-center gap-3 flex-1 min-w-0 text-right">
-                <BankLogo bank={bank} size={40} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-800 dark:text-slate-100">{cat?.name || 'نامشخص'}</span>
-                    {cust && <span className="text-xs text-slate-400">• {cust.name}</span>}
-                    {bill && <span className="text-xs text-slate-400">• {bill.name}</span>}
+        {sorted.length === 0 ? (
+          <div className="card p-8 text-center text-slate-400 dark:text-slate-500">
+            <Receipt size={40} className="mx-auto mb-2 opacity-50" />
+            <p>هنوز هزینه‌ای ثبت نشده است</p>
+          </div>
+        ) : (
+          sorted.map((item) => {
+            const bank = allBanks.find((b) => b.id === item.sourceBankId) || { id: item.sourceBankId, name: item.sourceBankName || item.customBankName, svg: null }
+            return (
+              <div key={item.id} className="card p-3">
+                <div className="flex items-start gap-3">
+                  <BankLogo bank={bank} size={40} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-800 dark:text-slate-100 break-words leading-tight">
+                          {getExpenseTitle(item)}
+                        </p>
+                        {item.sourceBankName && (
+                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 break-words">
+                            {item.sourceBankName || item.customBankName}
+                          </p>
+                        )}
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 no-wrap">
+                          {formatJalaliWithWeekday(item.date)}
+                          {item.time && <span className="mr-2">-{toPersianDigits(item.time)}</span>}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button onClick={() => openEditForm(item)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400">
+                          <Pencil size={16} />
+                        </button>
+                        <button onClick={() => setDeleteId(item.id)} className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-1.5">
+                      <p className="amount-text font-bold text-red-600 dark:text-red-400">
+                        {formatAmount(item.amount, currency)}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-400">{formatJalaliLong(exp.date)}{exp.time && ` • ${toPersianDigits(exp.time)}`}</p>
                 </div>
-                <p className="font-bold text-red-600 dark:text-red-400 whitespace-nowrap">-{formatAmount(exp.amount, currency)}</p>
-              </button>
-              <button onClick={() => openEditForm(exp)} className="p-2 rounded-lg text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 shrink-0"><Pencil size={16} /></button>
-              <button onClick={() => setDeleteTarget(exp)} className="p-2 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 shrink-0"><Trash2 size={16} /></button>
-            </div>
-          )
-        })}
+              </div>
+            )
+          })
+        )}
       </div>
 
-      <Modal open={showForm} onClose={() => { setShowForm(false); resetForm() }} title={editingId ? 'ویرایش هزینه' : 'ثبت هزینه'} size="lg" dirty={formDirty} onSave={handleSubmit} onDiscard={() => { setShowForm(false); resetForm() }}
-        footer={({ attemptClose }) => (<div className="flex gap-2"><button onClick={attemptClose} className="btn-ghost flex-1">انصراف</button><button onClick={handleSubmit} className="btn-primary flex-1">{editingId ? 'ذخیره تغییرات' : 'ثبت'}</button></div>)}>
-        <div className="space-y-4">
-          <div><label className="label">مبلغ</label><AmountInput value={amount} onChange={setAmount} /></div>
-          <div>
-            <label className="label">دسته‌بندی</label>
-            <div className="flex gap-2">
-              <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="input flex-1"><option value="">انتخاب دسته</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-              <button onClick={() => setShowAddCategory(true)} className="btn-ghost px-3"><Plus size={18} /></button>
-            </div>
-          </div>
-
-          {isPayment && (
-            <div>
-              <label className="label">مشتری</label>
-              <div className="flex gap-2">
-                <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="input flex-1">
-                  <option value="">انتخاب مشتری</option>
-                  {sortedCustomers.map((c) => <option key={c.id} value={c.id}>{c.name} ({toPersianDigits(c._txCount)} تراکنش)</option>)}
-                </select>
-                <button onClick={() => { setShowAddCustomer(true); setCustomerError('') }} className="btn-ghost px-3"><Plus size={18} /></button>
-              </div>
-            </div>
-          )}
-
-          {isBills && (
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="label !mb-0">نام قبض</label>
-                <button onClick={() => { setShowBillManager(true); setBillError('') }} className="text-xs text-brand-600 dark:text-brand-400">مدیریت قبوض</button>
-              </div>
-              <select value={billNameId} onChange={(e) => setBillNameId(e.target.value)} className="input">
-                <option value="">انتخاب قبض</option>
-                {allBills.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label className="label">حساب مبدأ</label>
-            <div className="flex gap-2">
-              <select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="input flex-1"><option value="">انتخاب حساب</option>{accounts.map((a) => { const bank = DEFAULT_BANKS.find((b) => b.id === a.bankId); return <option key={a.id} value={a.id}>{bank?.name || a.name}</option> })}</select>
-              <button onClick={() => setShowBankPicker(true)} className="btn-ghost px-3"><Wallet size={18} /></button>
-            </div>
-          </div>
-          <div><label className="label">تاریخ</label><JalaliDatePicker value={date} onChange={setDate} /></div>
-          <div>
-            <label className="label">ساعت</label>
-            <div className="relative"><Clock size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /><input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="input pr-10" /></div>
-          </div>
-          <div><label className="label">توضیحات</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} className="input min-h-[80px] resize-none" placeholder="توضیحات اختیاری..." /></div>
-        </div>
-      </Modal>
-
-      <Modal open={showBankPicker} onClose={() => setShowBankPicker(false)} title="انتخاب بانک" size="xl">
-        <div className="grid grid-cols-3 gap-2">
-          {DEFAULT_BANKS.map((bank) => (<button key={bank.id} onClick={() => handleAddAccount(bank.id)} className="card p-3 flex flex-col items-center gap-2 hover:border-brand-400 transition"><BankLogo bank={bank} size={48} /><span className="text-xs text-slate-600 dark:text-slate-300 text-center">{bank.name}</span></button>))}
-        </div>
-      </Modal>
-
-      <Modal open={showAddCategory} onClose={() => { setShowAddCategory(false); setNewCategoryName('') }} title="افزودن دسته‌بندی" dirty={categoryDirty} onSave={handleAddCategory} onDiscard={() => { setShowAddCategory(false); setNewCategoryName('') }}
-        footer={({ attemptClose }) => (<div className="flex gap-2"><button onClick={attemptClose} className="btn-ghost flex-1">انصراف</button><button onClick={handleAddCategory} className="btn-primary flex-1">افزودن</button></div>)}>
-        <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="input" placeholder="نام دسته‌بندی" autoFocus />
-      </Modal>
-
-      <Modal open={showBillManager} onClose={() => { setShowBillManager(false); setNewBillName(''); setBillError('') }} title="مدیریت قبوض" size="lg" dirty={billDirty} onDiscard={() => { setShowBillManager(false); setNewBillName(''); setBillError('') }}
-        footer={({ attemptClose }) => (<button onClick={attemptClose} className="btn-ghost w-full">بستن</button>)}>
-        <div className="space-y-3">
+      {/* Add/Edit Form Modal */}
+      <Modal
+        open={showForm}
+        onClose={handleFormClose}
+        title={editingId ? 'ویرایش هزینه' : 'ثبت هزینه جدید'}
+        footer={
           <div className="flex gap-2">
-            <input value={newBillName} onChange={(e) => setNewBillName(e.target.value)} className="input" placeholder="نام قبض (مثلاً قبض آب، قبض برق)" />
-            <button onClick={handleAddBill} className="btn-primary px-3"><Plus size={18} /></button>
+            <button onClick={handleFormClose} className="btn-ghost flex-1">انصراف</button>
+            <button onClick={editingId ? () => setEditConfirm(true) : handleSave} className="btn-primary flex-1">تایید</button>
           </div>
-          {billError && <p className="text-sm text-red-500">{billError}</p>}
-          <div className="space-y-2">
-            {/* Default bills — not deletable */}
-            {DEFAULT_BILL_NAMES.map((name, idx) => (
-              <div key={`default_${idx}`} className="card p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-700 dark:text-slate-200">{name}</span>
-                  <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full">پیش‌فرض</span>
+        }
+      >
+        <div className="space-y-4">
+          {/* Amount */}
+          <div>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">مبلغ</label>
+            <AmountInput value={formAmount} onChange={setFormAmount} currency={currency} />
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">دسته‌بندی</label>
+            <div className="flex gap-2">
+              {EXPENSE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setFormCategory(cat.id)}
+                  className={`chip flex-1 justify-center ${
+                    formCategory === cat.id
+                      ? 'bg-brand-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Customer (when category = payment) */}
+          {formCategory === 'payment' && (
+            <div>
+              <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">مشتری</label>
+              <button
+                type="button"
+                onClick={() => setShowCustomerSelect(true)}
+                className="input-field flex items-center justify-between text-right"
+              >
+                <span className={selectedCustomer ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400'}>
+                  {selectedCustomer?.name || 'انتخاب مشتری'}
+                </span>
+                <User size={18} className="text-slate-400" />
+              </button>
+            </div>
+          )}
+
+          {/* Bill (when category = bills) */}
+          {formCategory === 'bills' && (
+            <div>
+              <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">قبض</label>
+              <button
+                type="button"
+                onClick={() => setShowBillSelect(true)}
+                className="input-field flex items-center justify-between text-right"
+              >
+                <span className={selectedBill ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400'}>
+                  {selectedBill?.name || 'انتخاب قبض'}
+                </span>
+                <FileText size={18} className="text-slate-400" />
+              </button>
+            </div>
+          )}
+
+          {/* Source Bank */}
+          <div>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">حساب مبدأ</label>
+            <button
+              type="button"
+              onClick={() => setShowBankSelect(true)}
+              className="input-field flex items-center justify-between text-right"
+            >
+              <span className={selectedBank || formSourceBankId === 'other' ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400'}>
+                {formSourceBankId === 'other' ? (formCustomBankName || 'سایر') : (selectedBank?.name || 'انتخاب حساب')}
+              </span>
+              <Wallet size={18} className="text-slate-400" />
+            </button>
+          </div>
+
+          {/* Date */}
+          <div>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">تاریخ</label>
+            <JalaliDatePicker value={formDate} onChange={(d) => setFormDate(d)} />
+          </div>
+
+          {/* Time */}
+          <div>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">ساعت</label>
+            <input
+              type="time"
+              value={formTime}
+              onChange={(e) => setFormTime(e.target.value)}
+              className="input-field tabular-nums"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">توضیحات</label>
+            <textarea
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.target.value)}
+              placeholder="اختیاری"
+              rows={2}
+              className="input-field resize-none"
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Bank Select Modal */}
+      <Modal open={showBankSelect} onClose={() => setShowBankSelect(false)} title="انتخاب حساب مبدأ">
+        <div className="space-y-1.5">
+          {allBanks.map((bank) => (
+            <button
+              key={bank.id}
+              onClick={() => {
+                setFormSourceBankId(bank.id)
+                if (bank.id === 'other') {
+                  setShowCustomBankInput(true)
+                } else {
+                  setShowBankSelect(false)
+                }
+              }}
+              className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition ${
+                formSourceBankId === bank.id ? 'bg-brand-50 dark:bg-brand-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+              }`}
+            >
+              <BankLogo bank={bank} size={36} />
+              <span className="font-medium text-slate-700 dark:text-slate-200">{bank.name}</span>
+            </button>
+          ))}
+        </div>
+      </Modal>
+
+      {/* Customer Select Modal */}
+      <Modal open={showCustomerSelect} onClose={() => setShowCustomerSelect(false)} title="انتخاب مشتری">
+        {sortedCustomers.length === 0 ? (
+          <p className="text-center text-slate-400 py-4">هنوز مشتری ثبت نشده است</p>
+        ) : (
+          <div className="space-y-1.5">
+            {sortedCustomers.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => { setFormCustomerId(c.id); setFormCustomerName(c.name); setShowCustomerSelect(false) }}
+                className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition ${
+                  formCustomerId === c.id ? 'bg-brand-50 dark:bg-brand-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                <div className="w-9 h-9 rounded-full bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center text-brand-600 dark:text-brand-300 font-bold text-sm">
+                  {c.name.charAt(0)}
                 </div>
-              </div>
-            ))}
-            {/* Custom bills — deletable */}
-            {billNames.length === 0 && <p className="text-sm text-slate-400 text-center py-2">قبض سفارشی اضافه نشده</p>}
-            {billNames.map((b) => (
-              <div key={b.id} className="card p-3 flex items-center justify-between">
-                <span className="text-slate-700 dark:text-slate-200">{b.name}</span>
-                <button onClick={() => deleteBillName(b.id)} className="p-2 text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 size={16} /></button>
-              </div>
+                <span className="font-medium text-slate-700 dark:text-slate-200">{c.name}</span>
+              </button>
             ))}
           </div>
+        )}
+      </Modal>
+
+      {/* Bill Select Modal */}
+      <Modal open={showBillSelect} onClose={() => setShowBillSelect(false)} title="انتخاب قبض">
+        <div className="space-y-1.5">
+          {allBills.map((bill) => {
+            const isCustom = customBills.some((b) => b.id === bill.id)
+            return (
+              <div key={bill.id} className="flex items-center gap-2">
+                <button
+                  onClick={() => { setFormBillId(bill.id); setFormBillName(bill.name); setShowBillSelect(false) }}
+                  className={`flex-1 flex items-center gap-3 p-2.5 rounded-xl transition ${
+                    formBillId === bill.id ? 'bg-brand-50 dark:bg-brand-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                  }`}
+                >
+                  <FileText size={20} className="text-slate-400" />
+                  <span className="font-medium text-slate-700 dark:text-slate-200">{bill.name}</span>
+                </button>
+                {isCustom && (
+                  <button onClick={() => setBillDeleteId(bill.id)} className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500">
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+          <button
+            onClick={() => setShowCustomBillInput(true)}
+            className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-600 text-slate-500 hover:border-brand-400 hover:text-brand-500 transition"
+          >
+            <Plus size={18} />
+            افزودن قبض جدید
+          </button>
         </div>
       </Modal>
 
-      <Modal open={showAddCustomer} onClose={() => { setShowAddCustomer(false); setNewCustomerName(''); setCustomerError('') }} title="افزودن مشتری" dirty={customerDirty} onSave={handleAddCustomer} onDiscard={() => { setShowAddCustomer(false); setNewCustomerName(''); setCustomerError('') }}
-        footer={({ attemptClose }) => (<div className="flex gap-2"><button onClick={attemptClose} className="btn-ghost flex-1">انصراف</button><button onClick={handleAddCustomer} className="btn-primary flex-1">افزودن</button></div>)}>
-        <div>
-          <input value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} className={`input ${customerError ? 'border-red-500' : ''}`} placeholder="نام مشتری" autoFocus />
-          {customerError && <p className="text-sm text-red-500 mt-1.5">{customerError}</p>}
-        </div>
+      {/* Custom Bill Input */}
+      <Modal
+        open={showCustomBillInput}
+        onClose={() => { setShowCustomBillInput(false); setCustomBillNameInput('') }}
+        title="افزودن قبض"
+        size="sm"
+        footer={
+          <div className="flex gap-2">
+            <button onClick={() => { setShowCustomBillInput(false); setCustomBillNameInput('') }} className="btn-ghost flex-1">انصراف</button>
+            <button onClick={handleAddCustomBill} className="btn-primary flex-1">تایید</button>
+          </div>
+        }
+      >
+        <input
+          type="text"
+          value={customBillNameInput}
+          onChange={(e) => setCustomBillNameInput(e.target.value)}
+          placeholder="نام قبض"
+          className="input-field"
+          autoFocus
+        />
       </Modal>
 
-      <ConfirmActionDialog open={editConfirm} onConfirm={confirmEdit} onCancel={() => setEditConfirm(false)} title="ویرایش هزینه" message="آیا از ویرایش این مورد اطمینان دارید؟" confirmLabel="ذخیره تغییرات" />
-      <ConfirmActionDialog open={!!deleteTarget} onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} title="حذف هزینه" message="آیا از حذف این مورد اطمینان دارید؟" confirmLabel="حذف" confirmClass="btn-danger" />
+      {/* Custom Bank Input */}
+      <Modal
+        open={showCustomBankInput}
+        onClose={() => { setShowCustomBankInput(false); setCustomBankNameInput('') }}
+        title="نام بانک"
+        size="sm"
+        footer={
+          <div className="flex gap-2">
+            <button onClick={() => { setShowCustomBankInput(false); setCustomBankNameInput('') }} className="btn-ghost flex-1">انصراف</button>
+            <button onClick={handleAddCustomBank} className="btn-primary flex-1">تایید</button>
+          </div>
+        }
+      >
+        <input
+          type="text"
+          value={customBankNameInput}
+          onChange={(e) => setCustomBankNameInput(e.target.value)}
+          placeholder="نام بانک"
+          className="input-field"
+          autoFocus
+        />
+      </Modal>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={!!deleteId}
+        title="حذف"
+        message="آیا از حذف این مورد اطمینان دارید؟"
+        confirmText="تایید"
+        cancelText="انصراف"
+        danger
+        onConfirm={() => { deleteExpense(deleteId); setDeleteId(null) }}
+        onCancel={() => setDeleteId(null)}
+      />
+
+      {/* Bill Delete Confirmation */}
+      <ConfirmDialog
+        open={!!billDeleteId}
+        title="حذف قبض"
+        message="آیا از حذف این قبض اطمینان دارید؟"
+        confirmText="تایید"
+        cancelText="انصراف"
+        danger
+        onConfirm={() => { deleteCustomBill(billDeleteId); setBillDeleteId(null) }}
+        onCancel={() => setBillDeleteId(null)}
+      />
+
+      {/* Edit Confirmation */}
+      <ConfirmDialog
+        open={editConfirm}
+        title="ویرایش"
+        message="آیا از ویرایش این مورد اطمینان دارید؟"
+        confirmText="تایید"
+        cancelText="انصراف"
+        onConfirm={handleEditConfirmSave}
+        onCancel={() => setEditConfirm(false)}
+      />
+
+      {/* Unsaved Changes Dialog */}
+      <UnsavedDialog
+        open={showUnsaved}
+        onSave={handleUnsavedSave}
+        onDiscard={handleUnsavedDiscard}
+        onCancel={() => setShowUnsaved(false)}
+      />
     </div>
   )
 }

@@ -6,9 +6,12 @@ const FIELDS = [
   { id: 'amount', label: 'مبلغ' }
 ]
 
+// SortBar: 3-button sort control with active highlight and direction arrow
+// Default: date descending (newest first)
 export default function SortBar({ sortField, sortDir, onChange }) {
   const handleFieldClick = (fieldId) => {
     if (sortField === fieldId) {
+      // Toggle direction
       onChange(fieldId, sortDir === 'desc' ? 'asc' : 'desc')
     } else {
       // Default direction per field
@@ -32,9 +35,7 @@ export default function SortBar({ sortField, sortDir, onChange }) {
               >
                 {f.label}
                 {active && (
-                  sortDir === 'desc'
-                    ? <ArrowDown size={14} />
-                    : <ArrowUp size={14} />
+                  sortDir === 'desc' ? <ArrowDown size={14} /> : <ArrowUp size={14} />
                 )}
               </button>
             )
