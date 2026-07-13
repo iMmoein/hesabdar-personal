@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { TrendingUp, Receipt, BarChart3, Users, Settings } from 'lucide-react'
 import RevenuePage from './pages/RevenuePage'
 import ExpensesPage from './pages/ExpensesPage'
@@ -17,6 +17,8 @@ const TABS = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('revenue')
+  const [showExitConfirm, setShowExitConfirm] = useState(false)
+  const exitAppRef = useRef(null)
 
   useEffect(() => {
     let listener
@@ -26,11 +28,20 @@ export default function App() {
       try {
         const { App } = await import('@capacitor/app')
         if (cancelled) return
+        exitAppRef.current = App
         listener = await App.addListener('backButton', () => {
+          // Priority 1: if a sub-handler is registered (modal, date picker, etc.), let it handle
           const topHandler = getTopBackHandler()
           if (topHandler) { topHandler(); return }
+
+          // Priority 2: if exit dialog is already open, treat back as "خیر" (dismiss)
+          if (showExitConfirm) { setShowExitConfirm(false); return }
+
+          // Priority 3: if not on root tab, go to root
           if (activeTab !== 'revenue') { setActiveTab('revenue'); return }
-          App.exitApp()
+
+          // Priority 4: on root level — show exit confirmation
+          setShowExitConfirm(true)
         })
       } catch { /* Not running in Capacitor */ }
     })()
@@ -40,7 +51,18 @@ export default function App() {
       if (listener && typeof listener.remove === 'function') listener.remove()
       clearBackStack()
     }
-  }, [activeTab])
+  }, [activeTab, showExitConfirm])
+
+  const handleExitConfirm = () => {
+    setShowExitConfirm(false)
+    if (exitAppRef.current) {
+      exitAppRef.current.exitApp()
+    }
+  }
+
+  const handleExitCancel = () => {
+    setShowExitConfirm(false)
+  }
 
   const ActiveComponent = TABS.find((t) => t.id === activeTab)?.component || RevenuePage
 
@@ -61,6 +83,21 @@ export default function App() {
           })}
         </div>
       </nav>
+
+      {/* Exit confirmation dialog */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleExitCancel} />
+          <div className="relative w-full max-w-sm bg-white dark:bg-slate-800 rounded-2xl shadow-card p-5 animate-scaleIn">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 text-center mb-2">خروج از برنامه</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-5 leading-relaxed">آیا می‌خواهید از برنامه خارج شوید؟</p>
+            <div className="flex gap-2">
+              <button onClick={handleExitCancel} className="btn-ghost flex-1">خیر</button>
+              <button onClick={handleExitConfirm} className="btn-danger flex-1">بله</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
