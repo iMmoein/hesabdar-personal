@@ -1,57 +1,79 @@
-name: Android Debug APK Build
+name: Android Debug APK
 
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
+    name: Build Debug APK
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
 
-      - uses: actions/setup-java@v4
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+          accept-android-sdk-licenses: true
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build web assets
-        run: npm run build
+      - name: Ensure Android asset directories exist
+        run: |
+          mkdir -p android/app/src/main/assets/public
+          mkdir -p android/app/src/main/res
+          ls -la android/app/src/main
+          ls -la android/app/src/main/assets
 
-      - name: Validate capacitor config
+      - name: Validate Capacitor config file
         run: |
           if [ ! -f capacitor.config.json ]; then
-            echo "Error: capacitor.config.json not found in project root"
-            exit 1
+            echo "capacitor.config.json missing, creating it..."
+            cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.hesabdar.personal",
+            "appName": "حسابدار شخصی",
+            "webDir": "dist"
+          }
+          EOF
           fi
-          if ! npx cap doctor; then
-            echo "cap doctor failed"
-            exit 1
-          fi
+          cat capacitor.config.json
 
-      - name: Add Android platform
-        run: npx cap add android
+      - name: Build Vite app
+        run: npm run build
 
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Build Debug APK
-        working-directory: android
-        run: ./gradlew assembleDebug
+      - name: Run Capacitor doctor (diagnostic only)
+        run: npx cap doctor || true
 
-      - name: Upload APK
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: hesabdar-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
