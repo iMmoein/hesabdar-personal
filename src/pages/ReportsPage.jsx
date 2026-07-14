@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { TrendingUp, TrendingDown, Wallet, PieChart as PieIcon } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, ChartPie as PieIcon } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, Tooltip } from 'recharts'
 import { filterByDate, formatAmount, getJalaliMonths, todayJalali } from '../lib/jalali'
 

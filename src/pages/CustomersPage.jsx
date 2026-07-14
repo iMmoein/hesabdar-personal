@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Edit2, Trash2, Users } from 'lucide-react'
+import { Plus, CreditCard as Edit2, Trash2, Users } from 'lucide-react'
 import { formatAmount, formatJalaliLong, getJalaliWeekdayName, toPersianDigits } from '../lib/jalali'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'

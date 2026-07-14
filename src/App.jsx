@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, BarChart3, Users, Settings } from 'lucide-react'
+import { TrendingUp, TrendingDown, ChartBar as BarChart3, Users, Settings } from 'lucide-react'
 import { useStore } from './lib/store'
 import { getTopBackHandler } from './lib/backButtonRegistry'
 import { App as CapacitorApp } from '@capacitor/app'

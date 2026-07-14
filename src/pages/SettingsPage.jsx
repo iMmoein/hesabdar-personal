@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Download, Upload, Moon, Sun, Plus, Trash2, Building2, FileText, AlertCircle } from 'lucide-react'
+import { Download, Upload, Moon, Sun, Plus, Trash2, Building2, FileText, CircleAlert as AlertCircle } from 'lucide-react'
 import ConfirmDialog from '../components/ConfirmDialog'
 import Modal from '../components/Modal'
 

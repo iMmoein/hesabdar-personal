@@ -1,4 +1,4 @@
-import { AlertCircle } from 'lucide-react'
+import { CircleAlert as AlertCircle } from 'lucide-react'
 
 export default function UnsavedDialog({ open, onDiscard, onCancel }) {
   if (!open) return null
