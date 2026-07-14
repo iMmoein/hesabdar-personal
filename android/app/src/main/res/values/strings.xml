@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">حسابدار شخصی</string>
+    <string name="title_activity_main">حسابدار شخصی</string>
+    <string name="package_name">com.hesabdar.personal</string>
+    <string name="custom_url_scheme">com.hesabdar.personal</string>
+</resources>
