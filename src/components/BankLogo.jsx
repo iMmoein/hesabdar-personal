@@ -1,24 +1,44 @@
-import { getBankSvgUrl, getBankInitial, getBankColor } from '../lib/banks'
+import React, { useState } from 'react'
+import { getBankById, getBankLogoUrl, getBankInitial } from '../utils/banks'
 
-export default function BankLogo({ bank, size = 40, className = '' }) {
-  const svgUrl = bank?.svg ? getBankSvgUrl(bank.svg) : null
-  const color = getBankColor(bank?.id)
-  if (svgUrl) {
+export const BankLogo = React.memo(function BankLogo({ bankId, name, size = 44, isDark = false }) {
+  const [imgError, setImgError] = useState(false)
+
+  const bank = getBankById(bankId)
+  const logoUrl = bank.logo ? getBankLogoUrl(bank.logo) : null
+  const displayName = name || bank.name || 'سایر'
+
+  if (logoUrl && !imgError) {
     return (
       <div
-        className={`flex items-center justify-center rounded-xl overflow-hidden bg-white dark:bg-slate-100 shrink-0 ${className}`}
-        style={{ width: size, height: size }}
+        className="flex items-center justify-center rounded-2xl overflow-hidden flex-shrink-0 shadow-sm"
+        style={{
+          width: size,
+          height: size,
+          background: isDark ? '#ffffff' : 'linear-gradient(135deg, #f8fafc, #f1f5f9)',
+        }}
       >
-        <img src={svgUrl} alt={bank?.name || ''} className="w-full h-full object-contain p-1" />
+        <img
+          src={logoUrl}
+          alt={displayName}
+          className="w-full h-full object-contain p-1"
+          onError={() => setImgError(true)}
+        />
       </div>
     )
   }
+
   return (
     <div
-      className={`flex items-center justify-center rounded-xl text-white font-bold shrink-0 ${className}`}
-      style={{ width: size, height: size, backgroundColor: color, fontSize: size * 0.4 }}
+      className="flex items-center justify-center rounded-2xl flex-shrink-0 text-white font-bold shadow-sm"
+      style={{
+        width: size,
+        height: size,
+        background: `linear-gradient(135deg, ${bank.color || '#64748b'}, ${bank.color || '#64748b'}dd)`,
+        fontSize: size * 0.38,
+      }}
     >
-      {getBankInitial(bank?.name)}
+      {getBankInitial(displayName)}
     </div>
   )
-}
+})
