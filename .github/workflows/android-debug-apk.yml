@@ -40,12 +40,10 @@ jobs:
           mkdir -p android/app/src/main/assets/public
           mkdir -p android/app/src/main/res
           ls -la android/app/src/main
-          ls -la android/app/src/main/assets
 
-      - name: Validate Capacitor config file
+      - name: Validate Capacitor config
         run: |
           if [ ! -f capacitor.config.json ]; then
-            echo "capacitor.config.json missing, creating it..."
             cat > capacitor.config.json <<'EOF'
           {
             "appId": "com.hesabdar.personal",
@@ -62,7 +60,7 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Run Capacitor doctor (diagnostic only)
+      - name: Run Capacitor doctor
         run: npx cap doctor || true
 
       - name: Build debug APK
