@@ -5,8 +5,9 @@ import { RevenueForm } from './RevenueForm'
 import { ConfirmDialog, Toast } from './FullScreenSheet'
 import { db, updateUsageCounts } from '../db/database'
 import { getTodayJalali, jalaliToKey, getMonthRange, getYearRange, formatAmount, JALALI_MONTHS, toPersianDigits } from '../utils/jalali'
+import { sortTransactions } from '../utils/sort'
 import { MonthPickerSheet } from './MonthPickerSheet'
-import { TrendingUp, Plus, ChevronLeft } from 'lucide-react'
+import { TrendingUp, Plus, ChevronLeft, ArrowUp, ArrowDown } from 'lucide-react'
 
 export function RevenuePage({ currency, isDark }) {
   const today = useMemo(() => getTodayJalali(), [])
@@ -19,6 +20,7 @@ export function RevenuePage({ currency, isDark }) {
   const [selectedMonth, setSelectedMonth] = useState(today.month)
   const [showMonthPicker, setShowMonthPicker] = useState(false)
   const [sortBy, setSortBy] = useState('date')
+  const [sortDir, setSortDir] = useState('desc')
   const [showForm, setShowForm] = useState(false)
   const [editData, setEditData] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -38,21 +40,20 @@ export function RevenuePage({ currency, isDark }) {
         filtered = allRevenue.filter((t) => t.dateKey >= range.startKey && t.dateKey <= range.endKey)
       }
 
-      filtered.sort((a, b) => {
-        if (sortBy === 'date') return (b.dateKey || 0) - (a.dateKey || 0)
-        if (sortBy === 'amount') return (b.amount || 0) - (a.amount || 0)
-        return 0
-      })
+      const accounts = await db.accounts.toArray()
+      const accountsMap = {}
+      accounts.forEach((a) => { accountsMap[a.id] = a })
 
-      setTransactions(filtered)
-      setTotal(filtered.reduce((acc, t) => acc + (t.amount || 0), 0))
+      const sorted = sortTransactions(filtered, sortBy, sortDir, accountsMap)
+      setTransactions(sorted)
+      setTotal(sorted.reduce((acc, t) => acc + (t.amount || 0), 0))
     } catch (e) {
       console.error('Failed to load revenue:', e)
       setTransactions([])
     } finally {
       setLoading(false)
     }
-  }, [filter, sortBy, today.year, today.month, selectedYear, selectedMonth])
+  }, [filter, sortBy, sortDir, today.year, today.month, selectedYear, selectedMonth])
 
   useEffect(() => {
     loadTransactions()
@@ -112,6 +113,15 @@ export function RevenuePage({ currency, isDark }) {
     }
   }
 
+  const handleSort = useCallback((field) => {
+    if (sortBy === field) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortBy(field)
+      setSortDir(field === 'bank' ? 'asc' : 'desc')
+    }
+  }, [sortBy])
+
   return (
     <ErrorBoundary>
       <div className="flex flex-col h-full">
@@ -169,17 +179,21 @@ export function RevenuePage({ currency, isDark }) {
             {[
               { key: 'date', label: 'تاریخ' },
               { key: 'amount', label: 'مبلغ' },
+              { key: 'bank', label: 'بانک' },
             ].map((s) => (
               <button
                 key={s.key}
-                onClick={() => setSortBy(s.key)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all btn-press ${
+                onClick={() => handleSort(s.key)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all btn-press flex items-center gap-1 ${
                   sortBy === s.key
                     ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900'
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                 }`}
               >
                 {s.label}
+                {sortBy === s.key && (
+                  sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                )}
               </button>
             ))}
           </div>

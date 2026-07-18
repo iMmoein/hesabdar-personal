@@ -71,14 +71,6 @@ export function RevenueForm({ editData, onConfirm, onClose, isDark }) {
 
   return (
     <>
-      {showAccountPicker && (
-        <AccountPickerSheet
-          selectedAccountId={account?.id}
-          onSelect={(acc) => { setAccount(acc); setShowAccountPicker(false) }}
-          onClose={() => setShowAccountPicker(false)}
-          isDark={isDark}
-        />
-      )}
       <FullScreenSheet
         title={editData ? 'ویرایش درآمد' : 'ثبت درآمد جدید'}
         onClose={onClose}
@@ -170,6 +162,14 @@ export function RevenueForm({ editData, onConfirm, onClose, isDark }) {
           </div>
         </div>
       </FullScreenSheet>
+      {showAccountPicker && (
+        <AccountPickerSheet
+          selectedAccountId={account?.id}
+          onSelect={(acc) => { setAccount(acc); setShowAccountPicker(false) }}
+          onClose={() => setShowAccountPicker(false)}
+          isDark={isDark}
+        />
+      )}
       {showBankSelector && (
         <BankSelectorSheet onSelect={handleBankSelect} onClose={() => setShowBankSelector(false)} />
       )}

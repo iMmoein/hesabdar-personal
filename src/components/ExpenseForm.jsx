@@ -102,28 +102,6 @@ export function ExpenseForm({ editData, onConfirm, onClose, isDark }) {
 
   return (
     <>
-      {showAccountPicker && (
-        <AccountPickerSheet
-          selectedAccountId={account?.id}
-          onSelect={(acc) => { setAccount(acc); setShowAccountPicker(false) }}
-          onClose={() => setShowAccountPicker(false)}
-          isDark={isDark}
-        />
-      )}
-      {showCustomerPicker && (
-        <CustomerPickerSheet
-          selectedCustomerId={customer?.id}
-          onSelect={(c) => { setCustomer(c); setShowCustomerPicker(false) }}
-          onClose={() => setShowCustomerPicker(false)}
-        />
-      )}
-      {showBillPicker && (
-        <BillPickerSheet
-          selectedBill={bill}
-          onSelect={(b) => { setBill(b); setShowBillPicker(false) }}
-          onClose={() => setShowBillPicker(false)}
-        />
-      )}
       <FullScreenSheet
         title={editData ? 'ویرایش هزینه' : 'ثبت هزینه جدید'}
         onClose={onClose}
@@ -281,6 +259,28 @@ export function ExpenseForm({ editData, onConfirm, onClose, isDark }) {
           </div>
         </div>
       </FullScreenSheet>
+      {showAccountPicker && (
+        <AccountPickerSheet
+          selectedAccountId={account?.id}
+          onSelect={(acc) => { setAccount(acc); setShowAccountPicker(false) }}
+          onClose={() => setShowAccountPicker(false)}
+          isDark={isDark}
+        />
+      )}
+      {showCustomerPicker && (
+        <CustomerPickerSheet
+          selectedCustomerId={customer?.id}
+          onSelect={(c) => { setCustomer(c); setShowCustomerPicker(false) }}
+          onClose={() => setShowCustomerPicker(false)}
+        />
+      )}
+      {showBillPicker && (
+        <BillPickerSheet
+          selectedBill={bill}
+          onSelect={(b) => { setBill(b); setShowBillPicker(false) }}
+          onClose={() => setShowBillPicker(false)}
+        />
+      )}
       {showBankSelector && (
         <BankSelectorSheet onSelect={handleBankSelect} onClose={() => setShowBankSelector(false)} />
       )}

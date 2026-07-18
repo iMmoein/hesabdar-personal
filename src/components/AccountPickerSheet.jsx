@@ -3,7 +3,7 @@ import { FullScreenSheet } from './FullScreenSheet'
 import { BankSelectorSheet } from './BankSelectorSheet'
 import { BankLogo } from './BankLogo'
 import { db } from '../db/database'
-import { Plus, Check } from 'lucide-react'
+import { Plus, Check, Wallet } from 'lucide-react'
 
 export function AccountPickerSheet({ selectedAccountId, onSelect, onClose, isDark }) {
   const [accounts, setAccounts] = useState([])
@@ -50,9 +50,6 @@ export function AccountPickerSheet({ selectedAccountId, onSelect, onClose, isDar
 
   return (
     <>
-      {showBankSelector && (
-        <BankSelectorSheet onSelect={handleBankSelect} onClose={() => setShowBankSelector(false)} />
-      )}
       <FullScreenSheet
         title="انتخاب حساب"
         onClose={onClose}
@@ -72,40 +69,51 @@ export function AccountPickerSheet({ selectedAccountId, onSelect, onClose, isDar
             </div>
           )}
           {accounts.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-16 h-16 rounded-3xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                <Plus className="w-8 h-8 text-slate-400" />
+            <div className="text-center py-20">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mx-auto mb-5">
+                <Wallet className="w-10 h-10 text-slate-400" />
               </div>
-              <p className="text-slate-400 dark:text-slate-500 text-sm mb-4">هیچ حسابی ذخیره نشده است</p>
+              <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">هنوز حسابی اضافه نکرده‌اید</p>
+              <button
+                onClick={() => setShowBankSelector(true)}
+                className="px-6 py-3 rounded-2xl bg-gradient-to-l from-brand-800 to-brand-600 text-white text-sm font-medium shadow-glow btn-press transition-all"
+              >
+                افزودن حساب جدید
+              </button>
             </div>
           ) : (
-            accounts.map((acc) => (
+            <>
+              {accounts.map((acc) => (
+                <button
+                  key={acc.id}
+                  onClick={() => onSelect(acc)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all btn-press ${
+                    selectedAccountId === acc.id
+                      ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-card dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <BankLogo bankId={acc.bankId} name={acc.name} size={44} isDark={isDark} />
+                  <span className="flex-1 text-sm text-slate-900 dark:text-slate-100 font-medium">{acc.name}</span>
+                  {selectedAccountId === acc.id && (
+                    <Check className="w-5 h-5 text-brand-600" />
+                  )}
+                </button>
+              ))}
               <button
-                key={acc.id}
-                onClick={() => onSelect(acc)}
-                className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all btn-press ${
-                  selectedAccountId === acc.id
-                    ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
-                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-card dark:hover:bg-slate-700'
-                }`}
+                onClick={() => setShowBankSelector(true)}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 text-brand-600 dark:text-brand-400 text-sm font-medium hover:bg-brand-50 dark:hover:bg-slate-800 active:scale-95 transition-all mt-2"
               >
-                <BankLogo bankId={acc.bankId} name={acc.name} size={44} isDark={isDark} />
-                <span className="flex-1 text-sm text-slate-900 dark:text-slate-100 font-medium">{acc.name}</span>
-                {selectedAccountId === acc.id && (
-                  <Check className="w-5 h-5 text-brand-600" />
-                )}
+                <Plus className="w-4 h-4" />
+                افزودن حساب
               </button>
-            ))
+            </>
           )}
-          <button
-            onClick={() => setShowBankSelector(true)}
-            className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 text-brand-600 dark:text-brand-400 text-sm font-medium hover:bg-brand-50 dark:hover:bg-slate-800 active:scale-95 transition-all mt-2"
-          >
-            <Plus className="w-4 h-4" />
-            افزودن حساب
-          </button>
         </div>
       </FullScreenSheet>
+      {showBankSelector && (
+        <BankSelectorSheet onSelect={handleBankSelect} onClose={() => setShowBankSelector(false)} />
+      )}
     </>
   )
 }
