@@ -9,6 +9,8 @@ import { MonthPickerSheet } from './MonthPickerSheet'
 import { TrendingUp, Plus, ChevronLeft } from 'lucide-react'
 
 export function RevenuePage({ currency, isDark }) {
+  const today = useMemo(() => getTodayJalali(), [])
+
   const [transactions, setTransactions] = useState([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -21,8 +23,6 @@ export function RevenuePage({ currency, isDark }) {
   const [editData, setEditData] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [toast, setToast] = useState(null)
-
-  const today = useMemo(() => getTodayJalali(), [])
 
   const loadTransactions = useCallback(async () => {
     try {

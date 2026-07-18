@@ -43,6 +43,13 @@ export class ErrorBoundary extends React.Component {
           >
             تلاش دوباره
           </button>
+          {process.env.NODE_ENV !== 'production' && this.state.error && (
+            <details className="mt-4 text-xs text-left max-w-md w-full bg-red-50 dark:bg-red-900/20 p-3 rounded-xl overflow-auto max-h-48" dir="ltr">
+              <summary className="cursor-pointer text-red-600 dark:text-red-400 font-medium">Error details</summary>
+              <pre className="mt-2 whitespace-pre-wrap break-all text-red-700 dark:text-red-300">{this.state.error && this.state.error.toString ? this.state.error.toString() : String(this.state.error)}</pre>
+              <pre className="mt-2 whitespace-pre-wrap break-all text-red-700 dark:text-red-300">{this.state.errorInfo && this.state.errorInfo.componentStack}</pre>
+            </details>
+          )}
         </div>
       )
     }
