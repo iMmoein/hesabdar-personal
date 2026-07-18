@@ -14,16 +14,21 @@ export function CustomerPickerSheet({ selectedCustomerId, onSelect, onClose }) {
   const loadCustomers = useCallback(async () => {
     try {
       const list = await db.customers.toArray()
-      const withCounts = await Promise.all(
-        list.map(async (c) => {
-          const count = await db.transactions
-            .where('customerId')
-            .equals(c.id)
-            .filter((t) => t.type === 'expense' && t.categoryType === 'payment')
-            .count()
-          return { ...c, transactionCount: count }
-        })
-      )
+      const allTxs = await db.transactions.toArray()
+      const withCounts = list.map((c) => {
+        const count = allTxs.filter((t) => {
+          const linksToCustomer =
+            (c.id != null && t.customerId === c.id) ||
+            (t.customerName && c.name && String(t.customerName).trim() === String(c.name).trim())
+          const isExpense = t.type === 'expense' || !t.type
+          const isPayment =
+            t.categoryType === 'payment' ||
+            t.category === 'پرداختی' ||
+            t.categoryType === 'پرداختی'
+          return linksToCustomer && isExpense && isPayment
+        }).length
+        return { ...c, transactionCount: count }
+      })
       withCounts.sort((a, b) => {
         const countDiff = (b.transactionCount || 0) - (a.transactionCount || 0)
         if (countDiff !== 0) return countDiff

@@ -8,6 +8,18 @@ import { pushBackHandler, popBackHandler } from '../lib/backButtonRegistry'
 import { getTodayJalali, getMonthRange, getYearRange, formatAmount, formatJalaliDate, toPersianDigits, JALALI_MONTHS } from '../utils/jalali'
 import { Users, Plus, Trash2, Pencil, User, ChevronLeft, X, Wallet, Calendar, Clock, Tag, FileText } from 'lucide-react'
 
+function matchesCustomerPayment(t, customer) {
+  const linksToCustomer =
+    (customer.id != null && t.customerId === customer.id) ||
+    (t.customerName && customer.name && String(t.customerName).trim() === String(customer.name).trim())
+  const isExpense = t.type === 'expense' || !t.type
+  const isPayment =
+    t.categoryType === 'payment' ||
+    t.category === 'پرداختی' ||
+    t.categoryType === 'پرداختی'
+  return linksToCustomer && isExpense && isPayment
+}
+
 export function CustomersPage({ currency, isDark }) {
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -25,16 +37,11 @@ export function CustomersPage({ currency, isDark }) {
     try {
       setLoading(true)
       const list = await db.customers.toArray()
-      const withCounts = await Promise.all(
-        list.map(async (c) => {
-          const count = await db.transactions
-            .where('customerId')
-            .equals(c.id)
-            .filter((t) => t.type === 'expense' && t.categoryType === 'payment')
-            .count()
-          return { ...c, transactionCount: count }
-        })
-      )
+      const allTxs = await db.transactions.toArray()
+      const withCounts = list.map((c) => {
+        const count = allTxs.filter((t) => matchesCustomerPayment(t, c)).length
+        return { ...c, transactionCount: count }
+      })
       withCounts.sort((a, b) => {
         const countDiff = (b.transactionCount || 0) - (a.transactionCount || 0)
         if (countDiff !== 0) return countDiff
@@ -354,15 +361,15 @@ function CustomerDetail({ customer, currency, isDark, onClose }) {
   const loadDetail = useCallback(async () => {
     try {
       setLoading(true)
-      const allTxs = await db.transactions.where('customerId').equals(customer.id).toArray()
-      let filtered = allTxs
+      const allTxs = await db.transactions.toArray()
+      let filtered = allTxs.filter((t) => matchesCustomerPayment(t, customer))
 
       if (filter === 'monthly') {
         const range = getMonthRange(selectedYear, selectedMonth)
-        filtered = allTxs.filter((t) => t.dateKey >= range.startKey && t.dateKey <= range.endKey)
+        filtered = filtered.filter((t) => t.dateKey >= range.startKey && t.dateKey <= range.endKey)
       } else if (filter === 'yearly') {
         const range = getYearRange(today.year)
-        filtered = allTxs.filter((t) => t.dateKey >= range.startKey && t.dateKey <= range.endKey)
+        filtered = filtered.filter((t) => t.dateKey >= range.startKey && t.dateKey <= range.endKey)
       }
 
       filtered.sort((a, b) => (b.dateKey || 0) - (a.dateKey || 0))

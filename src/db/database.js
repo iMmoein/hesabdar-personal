@@ -190,7 +190,9 @@ export async function restoreBackup(data) {
         createdAt: t.createdAt || Date.now(),
         accountId: t.accountId || null,
         customerId: t.customerId || null,
+        customerName: t.customerName || '',
         category: t.category || '',
+        categoryType: t.categoryType || '',
         amount: Number(t.amount) || 0,
         description: t.description || '',
         time: t.time || '',
@@ -238,6 +240,47 @@ export async function restoreBackup(data) {
       await db.settings.bulkAdd(d.settings)
     }
   })
+
+  await normalizeImportedTransactions()
+}
+
+export async function normalizeImportedTransactions() {
+  const all = await db.transactions.toArray()
+  const customers = await db.customers.toArray()
+  const nameToId = new Map()
+  for (const c of customers) {
+    if (c.name) nameToId.set(c.name.trim(), c.id)
+  }
+
+  for (const t of all) {
+    const updates = {}
+
+    if (!t.type) {
+      updates.type = 'expense'
+    }
+
+    if (!t.categoryType) {
+      if (t.category === 'پرداختی') updates.categoryType = 'payment'
+      else if (t.category === 'قبوض') updates.categoryType = 'bill'
+      else if (t.category) updates.categoryType = t.category
+    }
+
+    if (!t.customerId && t.customerName) {
+      const id = nameToId.get(String(t.customerName).trim())
+      if (id) updates.customerId = id
+    }
+
+    if (!t.dateKey && t.dateJalali) {
+      const parts = String(t.dateJalali).split('/').map(Number)
+      if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
+        updates.dateKey = parts[0] * 10000 + parts[1] * 100 + parts[2]
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await db.transactions.update(t.id, updates)
+    }
+  }
 }
 
 export async function getStats() {
