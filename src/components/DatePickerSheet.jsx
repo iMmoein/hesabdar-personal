@@ -1,8 +1,10 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import jalaali from 'jalaali-js'
 import { FullScreenSheet } from './FullScreenSheet'
-import { ChevronRight, ChevronLeft } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Check } from 'lucide-react'
 import { JALALI_MONTHS, PERSIAN_WEEKDAYS, getDaysInJalaliMonth, getWeekday, toPersianDigits, jalaliToString, parseJalaliString } from '../utils/jalali'
+
+const YEARS = Array.from({ length: 41 }, (_, i) => 1380 + i)
 
 export function DatePickerSheet({ initialDate, onConfirm, onClose }) {
   const today = useMemo(() => {
@@ -19,6 +21,7 @@ export function DatePickerSheet({ initialDate, onConfirm, onClose }) {
   const [year, setYear] = useState(parsed?.year || today.year)
   const [month, setMonth] = useState(parsed?.month || today.month)
   const [selectedDay, setSelectedDay] = useState(parsed?.day || today.day)
+  const [picker, setPicker] = useState(null)
 
   const daysInMonth = useMemo(() => getDaysInJalaliMonth(year, month), [year, month])
   const firstWeekday = useMemo(() => getWeekday(year, month, 1), [year, month])
@@ -31,6 +34,11 @@ export function DatePickerSheet({ initialDate, onConfirm, onClose }) {
     return arr
   }, [weekdayIndex, daysInMonth])
 
+  const selectedWeekday = useMemo(() => {
+    if (!selectedDay || selectedDay > daysInMonth) return ''
+    return getWeekday(year, month, selectedDay)
+  }, [year, month, selectedDay, daysInMonth])
+
   const handlePrevMonth = useCallback(() => {
     if (month === 1) { setYear(y => y - 1); setMonth(12) }
     else setMonth(m => m - 1)
@@ -42,8 +50,9 @@ export function DatePickerSheet({ initialDate, onConfirm, onClose }) {
   }, [month])
 
   const handleConfirm = useCallback(() => {
-    onConfirm(jalaliToString(year, month, selectedDay))
-  }, [year, month, selectedDay, onConfirm])
+    const day = Math.min(selectedDay, daysInMonth)
+    onConfirm(jalaliToString(year, month, day))
+  }, [year, month, selectedDay, daysInMonth, onConfirm])
 
   const isToday = (day) => year === today.year && month === today.month && day === today.day
 
@@ -70,24 +79,20 @@ export function DatePickerSheet({ initialDate, onConfirm, onClose }) {
     >
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            className="flex-1 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm font-medium"
+          <button
+            onClick={() => setPicker('year')}
+            className="flex-1 flex items-center justify-between px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm font-medium hover:border-brand-400 transition-all"
           >
-            {Array.from({ length: 21 }, (_, i) => today.year - 10 + i).map((y) => (
-              <option key={y} value={y}>{toPersianDigits(y)}</option>
-            ))}
-          </select>
-          <select
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-            className="flex-1 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm font-medium"
+            <span>{toPersianDigits(year)}</span>
+            <ChevronLeft className="w-4 h-4 text-slate-400" />
+          </button>
+          <button
+            onClick={() => setPicker('month')}
+            className="flex-1 flex items-center justify-between px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm font-medium hover:border-brand-400 transition-all"
           >
-            {JALALI_MONTHS.map((m, i) => (
-              <option key={i + 1} value={i + 1}>{m}</option>
-            ))}
-          </select>
+            <span>{JALALI_MONTHS[month - 1]}</span>
+            <ChevronLeft className="w-4 h-4 text-slate-400" />
+          </button>
         </div>
 
         <div className="flex items-center justify-between px-2">
@@ -129,7 +134,66 @@ export function DatePickerSheet({ initialDate, onConfirm, onClose }) {
             </div>
           ))}
         </div>
+
+        {selectedWeekday && (
+          <div className="text-center text-sm text-slate-500 dark:text-slate-400 pt-1">
+            {selectedWeekday} {toPersianDigits(selectedDay)} {JALALI_MONTHS[month - 1]} {toPersianDigits(year)}
+          </div>
+        )}
       </div>
+
+      {picker === 'year' && (
+        <div className="fixed inset-0 z-[55] bg-black/40 backdrop-blur-sm flex items-end justify-center animate-fade-in" onClick={() => setPicker(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-t-3xl w-full max-w-md max-h-[70vh] overflow-y-auto no-scrollbar p-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">انتخاب سال</h3>
+              <button onClick={() => setPicker(null)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 text-sm">✕</button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {YEARS.map((y) => (
+                <button
+                  key={y}
+                  onClick={() => { setYear(y); setPicker(null) }}
+                  className={`py-2.5 rounded-xl text-sm font-medium transition-all btn-press ${
+                    y === year
+                      ? 'bg-gradient-to-br from-brand-700 to-brand-500 text-white shadow-glow'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600'
+                  }`}
+                >
+                  {toPersianDigits(y)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {picker === 'month' && (
+        <div className="fixed inset-0 z-[55] bg-black/40 backdrop-blur-sm flex items-end justify-center animate-fade-in" onClick={() => setPicker(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-t-3xl w-full max-w-md p-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">انتخاب ماه</h3>
+              <button onClick={() => setPicker(null)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 text-sm">✕</button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {JALALI_MONTHS.map((m, i) => (
+                <button
+                  key={i + 1}
+                  onClick={() => { setMonth(i + 1); setPicker(null) }}
+                  className={`py-3 rounded-xl text-sm font-medium transition-all btn-press flex items-center justify-center gap-2 ${
+                    i + 1 === month
+                      ? 'bg-gradient-to-br from-brand-700 to-brand-500 text-white shadow-glow'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600'
+                  }`}
+                >
+                  {i + 1 === month && <Check className="w-4 h-4" />}
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </FullScreenSheet>
   )
 }

@@ -1,11 +1,13 @@
 import React, { useState, useCallback, useMemo } from 'react'
-import { FullScreenSheet } from './FullScreenSheet'
+import { FullScreenSheet, Toast } from './FullScreenSheet'
 import { AccountPickerSheet } from './AccountPickerSheet'
+import { BankSelectorSheet } from './BankSelectorSheet'
 import { CustomerPickerSheet } from './CustomerPickerSheet'
 import { BillPickerSheet } from './BillPickerSheet'
 import { BankLogo } from './BankLogo'
+import { db } from '../db/database'
 import { formatInputAmount, parseAmountInput, getTodayJalali, jalaliToString, formatJalaliDateShort, getCurrentTime } from '../utils/jalali'
-import { ChevronLeft, Calendar, Wallet, User, FileText } from 'lucide-react'
+import { ChevronLeft, Calendar, Wallet, User, FileText, Plus } from 'lucide-react'
 
 const CATEGORIES = [
   { key: 'payment', label: 'پرداختی' },
@@ -24,10 +26,44 @@ export function ExpenseForm({ editData, onConfirm, onClose, isDark }) {
   const [customer, setCustomer] = useState(editData?.customer || null)
   const [bill, setBill] = useState(editData?.bill || '')
   const [showAccountPicker, setShowAccountPicker] = useState(false)
+  const [showBankSelector, setShowBankSelector] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showCustomerPicker, setShowCustomerPicker] = useState(false)
   const [showBillPicker, setShowBillPicker] = useState(false)
   const [error, setError] = useState('')
+  const [toast, setToast] = useState(null)
+
+  const showToast = useCallback((msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 2500)
+  }, [])
+
+  const handleBankSelect = useCallback(async (bank) => {
+    try {
+      const existing = await db.accounts.where('bankId').equals(bank.bankId).first()
+      if (existing && !bank.isCustom) {
+        showToast('این حساب قبلاً اضافه شده است', 'error')
+        setShowBankSelector(false)
+        return
+      }
+      const id = await db.accounts.add({
+        bankId: bank.bankId,
+        name: bank.name,
+        isCustom: bank.isCustom,
+        createdAt: Date.now(),
+        usageCount: 0,
+      })
+      const newAcc = await db.accounts.get(id)
+      setShowBankSelector(false)
+      if (newAcc) {
+        setAccount(newAcc)
+        showToast('حساب افزوده شد')
+      }
+    } catch (e) {
+      console.error('Failed to add account:', e)
+      showToast('افزودن حساب ناموفق بود', 'error')
+    }
+  }, [showToast])
 
   const handleConfirm = useCallback(() => {
     const parsedAmount = parseAmountInput(amount)
@@ -73,6 +109,9 @@ export function ExpenseForm({ editData, onConfirm, onClose, isDark }) {
           onClose={() => setShowAccountPicker(false)}
           isDark={isDark}
         />
+      )}
+      {showBankSelector && (
+        <BankSelectorSheet onSelect={handleBankSelect} onClose={() => setShowBankSelector(false)} />
       )}
       {showDatePicker && (
         <DatePickerSheet
@@ -194,25 +233,34 @@ export function ExpenseForm({ editData, onConfirm, onClose, isDark }) {
 
           <div>
             <label className="block text-sm text-slate-500 dark:text-slate-400 mb-2 font-medium">حساب</label>
-            <button
-              onClick={() => setShowAccountPicker(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-brand-400 transition-all"
-            >
-              {account ? (
-                <>
-                  <BankLogo bankId={account.bankId} name={account.name} size={36} isDark={isDark} />
-                  <span className="flex-1 text-sm text-slate-900 dark:text-slate-100 font-medium">{account.name}</span>
-                </>
-              ) : (
-                <>
-                  <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-                    <Wallet className="w-4 h-4 text-slate-400" />
-                  </div>
-                  <span className="flex-1 text-sm text-slate-400 text-right">انتخاب حساب</span>
-                </>
-              )}
-              <ChevronLeft className="w-5 h-5 text-slate-300" />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowAccountPicker(true)}
+                className="flex-1 flex items-center gap-3 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:border-brand-400 transition-all"
+              >
+                {account ? (
+                  <>
+                    <BankLogo bankId={account.bankId} name={account.name} size={36} isDark={isDark} />
+                    <span className="flex-1 text-sm text-slate-900 dark:text-slate-100 font-medium">{account.name}</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                      <Wallet className="w-4 h-4 text-slate-400" />
+                    </div>
+                    <span className="flex-1 text-sm text-slate-400 text-right">انتخاب حساب</span>
+                  </>
+                )}
+                <ChevronLeft className="w-5 h-5 text-slate-300" />
+              </button>
+              <button
+                onClick={() => setShowBankSelector(true)}
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-l from-red-600 to-red-500 text-white text-sm font-medium shadow-glow-red btn-press transition-all whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                افزودن حساب
+              </button>
+            </div>
           </div>
 
           <div>
@@ -243,6 +291,7 @@ export function ExpenseForm({ editData, onConfirm, onClose, isDark }) {
           </div>
         </div>
       </FullScreenSheet>
+      {toast && <Toast message={toast.msg} type={toast.type} />}
     </>
   )
 }

@@ -4,14 +4,18 @@ import { TransactionList } from './TransactionList'
 import { ExpenseForm } from './ExpenseForm'
 import { ConfirmDialog, Toast } from './FullScreenSheet'
 import { db, updateUsageCounts } from '../db/database'
-import { getTodayJalali, jalaliToKey, getMonthRange, getYearRange, formatAmount } from '../utils/jalali'
-import { TrendingDown, Plus } from 'lucide-react'
+import { getTodayJalali, jalaliToKey, getMonthRange, getYearRange, formatAmount, JALALI_MONTHS, toPersianDigits } from '../utils/jalali'
+import { MonthPickerSheet } from './MonthPickerSheet'
+import { TrendingDown, Plus, ChevronLeft } from 'lucide-react'
 
 export function ExpensePage({ currency, isDark }) {
   const [transactions, setTransactions] = useState([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [selectedYear, setSelectedYear] = useState(today.year)
+  const [selectedMonth, setSelectedMonth] = useState(today.month)
+  const [showMonthPicker, setShowMonthPicker] = useState(false)
   const [sortBy, setSortBy] = useState('date')
   const [showForm, setShowForm] = useState(false)
   const [editData, setEditData] = useState(null)
@@ -27,7 +31,7 @@ export function ExpensePage({ currency, isDark }) {
       let filtered = allExpense
 
       if (filter === 'monthly') {
-        const range = getMonthRange(today.year, today.month)
+        const range = getMonthRange(selectedYear, selectedMonth)
         filtered = allExpense.filter((t) => t.dateKey >= range.startKey && t.dateKey <= range.endKey)
       } else if (filter === 'yearly') {
         const range = getYearRange(today.year)
@@ -48,7 +52,7 @@ export function ExpensePage({ currency, isDark }) {
     } finally {
       setLoading(false)
     }
-  }, [filter, sortBy, today.year, today.month])
+  }, [filter, sortBy, today.year, today.month, selectedYear, selectedMonth])
 
   useEffect(() => {
     loadTransactions()
@@ -140,19 +144,20 @@ export function ExpensePage({ currency, isDark }) {
           <div className="flex gap-2 mb-3">
             {[
               { key: 'all', label: 'همه' },
-              { key: 'monthly', label: 'ماهیانه' },
+              { key: 'monthly', label: filter === 'monthly' ? `ماهیانه: ${JALALI_MONTHS[selectedMonth - 1]} ${toPersianDigits(selectedYear)}` : 'ماهیانه' },
               { key: 'yearly', label: 'سالانه' },
             ].map((f) => (
               <button
                 key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all btn-press ${
+                onClick={() => f.key === 'monthly' ? setShowMonthPicker(true) : setFilter(f.key)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all btn-press flex items-center gap-1 ${
                   filter === f.key
                     ? 'bg-gradient-to-l from-red-600 to-red-500 text-white shadow-md'
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                 }`}
               >
                 {f.label}
+                {f.key === 'monthly' && <ChevronLeft className="w-3.5 h-3.5 opacity-70" />}
               </button>
             ))}
           </div>
@@ -227,6 +232,20 @@ export function ExpensePage({ currency, isDark }) {
             confirmColor="red"
             onConfirm={handleDelete}
             onCancel={() => setDeleteTarget(null)}
+          />
+        )}
+
+        {showMonthPicker && (
+          <MonthPickerSheet
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            onConfirm={({ year, month }) => {
+              setSelectedYear(year)
+              setSelectedMonth(month)
+              setFilter('monthly')
+              setShowMonthPicker(false)
+            }}
+            onClose={() => setShowMonthPicker(false)}
           />
         )}
 
