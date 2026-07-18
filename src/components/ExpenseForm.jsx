@@ -110,16 +110,6 @@ export function ExpenseForm({ editData, onConfirm, onClose, isDark }) {
           isDark={isDark}
         />
       )}
-      {showBankSelector && (
-        <BankSelectorSheet onSelect={handleBankSelect} onClose={() => setShowBankSelector(false)} />
-      )}
-      {showDatePicker && (
-        <DatePickerSheet
-          initialDate={date}
-          onConfirm={(d) => { setDate(d); setShowDatePicker(false) }}
-          onClose={() => setShowDatePicker(false)}
-        />
-      )}
       {showCustomerPicker && (
         <CustomerPickerSheet
           selectedCustomerId={customer?.id}
@@ -291,6 +281,16 @@ export function ExpenseForm({ editData, onConfirm, onClose, isDark }) {
           </div>
         </div>
       </FullScreenSheet>
+      {showBankSelector && (
+        <BankSelectorSheet onSelect={handleBankSelect} onClose={() => setShowBankSelector(false)} />
+      )}
+      {showDatePicker && (
+        <DatePickerSheet
+          initialDate={date}
+          onConfirm={(d) => { setDate(d); setShowDatePicker(false) }}
+          onClose={() => setShowDatePicker(false)}
+        />
+      )}
       {toast && <Toast message={toast.msg} type={toast.type} />}
     </>
   )
