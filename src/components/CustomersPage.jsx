@@ -4,8 +4,9 @@ import { FullScreenSheet, ConfirmDialog, Toast } from './FullScreenSheet'
 import { MonthPickerSheet } from './MonthPickerSheet'
 import { BankLogo } from './BankLogo'
 import { db } from '../db/database'
+import { pushBackHandler, popBackHandler } from '../lib/backButtonRegistry'
 import { getTodayJalali, getMonthRange, getYearRange, formatAmount, formatJalaliDate, toPersianDigits, JALALI_MONTHS } from '../utils/jalali'
-import { Users, Plus, Trash2, User, ChevronLeft, X, Wallet, Calendar, Clock, Tag, FileText } from 'lucide-react'
+import { Users, Plus, Trash2, Pencil, User, ChevronLeft, X, Wallet, Calendar, Clock, Tag, FileText } from 'lucide-react'
 
 export function CustomersPage({ currency, isDark }) {
   const [customers, setCustomers] = useState([])
@@ -15,18 +16,31 @@ export function CustomersPage({ currency, isDark }) {
   const [error, setError] = useState('')
   const [detailCustomer, setDetailCustomer] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [editTarget, setEditTarget] = useState(null)
+  const [editName, setEditName] = useState('')
+  const [editError, setEditError] = useState('')
   const [toast, setToast] = useState(null)
 
   const loadCustomers = useCallback(async () => {
     try {
       setLoading(true)
       const list = await db.customers.toArray()
-      list.sort((a, b) => {
+      const withCounts = await Promise.all(
+        list.map(async (c) => {
+          const count = await db.transactions
+            .where('customerId')
+            .equals(c.id)
+            .filter((t) => t.type === 'expense' && t.categoryType === 'payment')
+            .count()
+          return { ...c, transactionCount: count }
+        })
+      )
+      withCounts.sort((a, b) => {
         const countDiff = (b.transactionCount || 0) - (a.transactionCount || 0)
         if (countDiff !== 0) return countDiff
         return (a.name || '').localeCompare(b.name || '', 'fa')
       })
-      setCustomers(list)
+      setCustomers(withCounts)
     } catch (e) {
       console.error('Failed to load customers:', e)
     } finally {
@@ -69,6 +83,40 @@ export function CustomersPage({ currency, isDark }) {
     }
   }
 
+  const openEdit = (c) => {
+    setEditTarget(c)
+    setEditName(c.name)
+    setEditError('')
+  }
+
+  const handleEdit = async () => {
+    if (!editTarget) return
+    const name = editName.trim().replace(/\s+/g, ' ')
+    if (!name) {
+      setEditError('نام مشتری نمی‌تواند خالی باشد')
+      return
+    }
+    try {
+      const all = await db.customers.toArray()
+      const dup = all.find(
+        (c) => c.id !== editTarget.id && c.name.replace(/\s+/g, ' ').trim().toLowerCase() === name.toLowerCase()
+      )
+      if (dup) {
+        setEditError('این نام مشتری قبلاً ثبت شده است')
+        return
+      }
+      await db.customers.update(editTarget.id, { name })
+      setEditTarget(null)
+      setEditName('')
+      setEditError('')
+      showToast('نام مشتری با موفقیت ویرایش شد')
+      loadCustomers()
+    } catch (e) {
+      console.error('Failed to edit customer:', e)
+      setEditError('ویرایش ناموفق بود')
+    }
+  }
+
   const handleDelete = async () => {
     if (!deleteTarget) return
     try {
@@ -87,6 +135,13 @@ export function CustomersPage({ currency, isDark }) {
       showToast('حذف ناموفق بود', 'error')
     }
   }
+
+  useEffect(() => {
+    if (!editTarget) return
+    const close = () => { setEditTarget(null); setEditName(''); setEditError('') }
+    pushBackHandler(close)
+    return () => popBackHandler()
+  }, [editTarget])
 
   return (
     <ErrorBoundary>
@@ -146,6 +201,12 @@ export function CustomersPage({ currency, isDark }) {
                 </button>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-slate-400 tabular-nums font-medium">{toPersianDigits(c.transactionCount || 0)}</span>
+                  <button
+                    onClick={() => openEdit(c)}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-slate-700 active:scale-90 transition-all"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={() => setDeleteTarget(c)}
                     className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-slate-700 active:scale-90 transition-all"
@@ -224,6 +285,51 @@ export function CustomersPage({ currency, isDark }) {
             onConfirm={handleDelete}
             onCancel={() => setDeleteTarget(null)}
           />
+        )}
+
+        {editTarget && (
+          <ErrorBoundary>
+            <FullScreenSheet
+              title="ویرایش نام مشتری"
+              onClose={() => { setEditTarget(null); setEditName(''); setEditError('') }}
+              footer={
+                <>
+                  <button
+                    onClick={() => { setEditTarget(null); setEditName(''); setEditError('') }}
+                    className="flex-1 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm font-medium btn-press transition-all"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    onClick={handleEdit}
+                    disabled={!editName.trim()}
+                    className="flex-1 py-3 rounded-2xl bg-gradient-to-l from-brand-800 to-brand-600 text-white text-sm font-medium disabled:opacity-50 btn-press shadow-glow"
+                  >
+                    تایید
+                  </button>
+                </>
+              }
+            >
+              <div className="p-4 space-y-3">
+                {editError && (
+                  <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                    {editError}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm text-slate-500 dark:text-slate-400 mb-2 font-medium">نام مشتری</label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="نام مشتری را وارد کنید"
+                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-800 outline-none transition-all"
+                    autoFocus
+                  />
+                </div>
+              </div>
+            </FullScreenSheet>
+          </ErrorBoundary>
         )}
 
         {toast && <Toast message={toast.msg} type={toast.type} />}

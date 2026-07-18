@@ -8,6 +8,7 @@ import { CustomersPage } from './components/CustomersPage'
 import { SettingsPage } from './components/SettingsPage'
 import { ConfirmDialog } from './components/FullScreenSheet'
 import { initDatabase, getSetting, setSetting } from './db/database'
+import { getTopBackHandler } from './lib/backButtonRegistry'
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('revenue')
@@ -60,6 +61,11 @@ export default function App() {
           const overlay = overlayRef.current
           if (overlay) {
             closeOverlay()
+            return
+          }
+          const topHandler = getTopBackHandler()
+          if (topHandler) {
+            topHandler()
             return
           }
           if (showExitDialog) {
