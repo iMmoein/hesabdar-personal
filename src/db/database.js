@@ -264,7 +264,11 @@ export async function updateUsageCounts() {
         await db.accounts.update(acc.id, { usageCount: count })
       }
       for (const cust of customers) {
-        const count = await db.transactions.where('customerId').equals(cust.id || 0).count()
+        const count = await db.transactions
+          .where('customerId')
+          .equals(cust.id || 0)
+          .filter((t) => t.type === 'expense' && t.categoryType === 'payment')
+          .count()
         await db.customers.update(cust.id, { transactionCount: count })
       }
     })

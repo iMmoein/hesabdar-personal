@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 import { FullScreenSheet, ConfirmDialog, Toast } from './FullScreenSheet'
+import { MonthPickerSheet } from './MonthPickerSheet'
 import { BankLogo } from './BankLogo'
 import { db } from '../db/database'
-import { getTodayJalali, getMonthRange, getYearRange, formatAmount, formatJalaliDate, toPersianDigits } from '../utils/jalali'
-import { Users, Plus, Trash2, User, ChevronLeft } from 'lucide-react'
+import { getTodayJalali, getMonthRange, getYearRange, formatAmount, formatJalaliDate, toPersianDigits, JALALI_MONTHS } from '../utils/jalali'
+import { Users, Plus, Trash2, User, ChevronLeft, X, Wallet, Calendar, Clock, Tag, FileText } from 'lucide-react'
 
 export function CustomersPage({ currency, isDark }) {
   const [customers, setCustomers] = useState([])
@@ -19,7 +20,12 @@ export function CustomersPage({ currency, isDark }) {
   const loadCustomers = useCallback(async () => {
     try {
       setLoading(true)
-      const list = await db.customers.orderBy('transactionCount').reverse().toArray()
+      const list = await db.customers.toArray()
+      list.sort((a, b) => {
+        const countDiff = (b.transactionCount || 0) - (a.transactionCount || 0)
+        if (countDiff !== 0) return countDiff
+        return (a.name || '').localeCompare(b.name || '', 'fa')
+      })
       setCustomers(list)
     } catch (e) {
       console.error('Failed to load customers:', e)
@@ -232,6 +238,10 @@ function CustomerDetail({ customer, currency, isDark, onClose }) {
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [accountsMap, setAccountsMap] = useState({})
+  const [selectedYear, setSelectedYear] = useState(0)
+  const [selectedMonth, setSelectedMonth] = useState(0)
+  const [showMonthPicker, setShowMonthPicker] = useState(false)
+  const [selectedTx, setSelectedTx] = useState(null)
 
   const today = useMemo(() => getTodayJalali(), [])
 
@@ -242,7 +252,7 @@ function CustomerDetail({ customer, currency, isDark, onClose }) {
       let filtered = allTxs
 
       if (filter === 'monthly') {
-        const range = getMonthRange(today.year, today.month)
+        const range = getMonthRange(selectedYear, selectedMonth)
         filtered = allTxs.filter((t) => t.dateKey >= range.startKey && t.dateKey <= range.endKey)
       } else if (filter === 'yearly') {
         const range = getYearRange(today.year)
@@ -265,7 +275,7 @@ function CustomerDetail({ customer, currency, isDark, onClose }) {
     } finally {
       setLoading(false)
     }
-  }, [customer.id, filter, today.year, today.month])
+  }, [customer.id, filter, today.year, selectedYear, selectedMonth])
 
   useEffect(() => {
     loadDetail()
@@ -303,12 +313,12 @@ function CustomerDetail({ customer, currency, isDark, onClose }) {
         <div className="flex gap-2">
           {[
             { key: 'all', label: 'همه' },
-            { key: 'monthly', label: 'ماهیانه' },
+            { key: 'monthly', label: filter === 'monthly' ? `ماهیانه: ${JALALI_MONTHS[selectedMonth - 1]} ${toPersianDigits(selectedYear)}` : 'ماهیانه' },
             { key: 'yearly', label: 'سالانه' },
           ].map((f) => (
             <button
               key={f.key}
-              onClick={() => setFilter(f.key)}
+              onClick={() => f.key === 'monthly' ? setShowMonthPicker(true) : setFilter(f.key)}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-all btn-press ${
                 filter === f.key
                   ? 'bg-gradient-to-l from-brand-800 to-brand-600 text-white'
@@ -332,7 +342,11 @@ function CustomerDetail({ customer, currency, isDark, onClose }) {
             </div>
           ) : (
             transactions.map((tx) => (
-              <div key={tx.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-card dark:shadow-card-dark p-4 space-y-2 border border-slate-100 dark:border-slate-700/50">
+              <button
+                key={tx.id}
+                onClick={() => setSelectedTx(tx)}
+                className="w-full text-right bg-white dark:bg-slate-800 rounded-2xl shadow-card dark:shadow-card-dark p-4 space-y-2 border border-slate-100 dark:border-slate-700/50 hover:border-brand-400 active:scale-[0.98] transition-all"
+              >
                 <div className="flex items-center gap-3">
                   <BankLogo bankId={accountsMap[tx.accountId]?.bankId} name={accountsMap[tx.accountId]?.name} size={36} isDark={isDark} />
                   <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -350,11 +364,70 @@ function CustomerDetail({ customer, currency, isDark, onClose }) {
                 {tx.description && (
                   <div className="text-xs text-slate-500 dark:text-slate-400">{tx.description}</div>
                 )}
-              </div>
+              </button>
             ))
           )}
         </div>
       </div>
+
+      {showMonthPicker && (
+        <MonthPickerSheet
+          selectedYear={selectedYear || today.year}
+          selectedMonth={selectedMonth || today.month}
+          onConfirm={({ year, month }) => {
+            setSelectedYear(year)
+            setSelectedMonth(month)
+            setFilter('monthly')
+            setShowMonthPicker(false)
+          }}
+          onClose={() => setShowMonthPicker(false)}
+        />
+      )}
+
+      {selectedTx && (
+        <FullScreenSheet
+          title="جزئیات تراکنش"
+          onClose={() => setSelectedTx(null)}
+          footer={
+            <button
+              onClick={() => setSelectedTx(null)}
+              className="flex-1 py-3 rounded-2xl bg-gradient-to-l from-brand-800 to-brand-600 text-white text-sm font-medium btn-press transition-all"
+            >
+              بستن
+            </button>
+          }
+        >
+          <div className="p-4 space-y-4">
+            <div className="flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-red-500 to-red-600 mx-auto shadow-glow-red">
+              <Wallet className="w-10 h-10 text-white" />
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card dark:shadow-card-dark border border-slate-100 dark:border-slate-700/50 divide-y divide-slate-100 dark:divide-slate-700/50">
+              <DetailRow icon={<User className="w-4 h-4" />} label="نام مشتری" value={customer.name} isDark={isDark} />
+              <DetailRow icon={<Wallet className="w-4 h-4" />} label="بانک" value={accountsMap[selectedTx.accountId]?.name || 'نامشخص'} isDark={isDark} />
+              <DetailRow icon={<Tag className="w-4 h-4" />} label="مبلغ" value={formatAmount(selectedTx.amount, currency)} valueClass="text-red-500 dark:text-red-400 font-bold" isDark={isDark} />
+              <DetailRow icon={<Calendar className="w-4 h-4" />} label="تاریخ" value={formatJalaliDate(selectedTx.dateJalali)} isDark={isDark} />
+              <DetailRow icon={<Clock className="w-4 h-4" />} label="ساعت" value={toPersianDigits(selectedTx.time || '--:--')} isDark={isDark} />
+              <DetailRow icon={<Tag className="w-4 h-4" />} label="دسته‌بندی" value={selectedTx.category || 'سایر'} isDark={isDark} />
+              <DetailRow icon={<FileText className="w-4 h-4" />} label="توضیحات" value={selectedTx.description?.trim() ? selectedTx.description : 'توضیحاتی ثبت نشده'} isDark={isDark} />
+            </div>
+          </div>
+        </FullScreenSheet>
+      )}
     </FullScreenSheet>
+  )
+}
+
+function DetailRow({ icon, label, value, valueClass = '', isDark }) {
+  return (
+    <div className="flex items-center gap-3 p-3">
+      <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400 shrink-0">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">{label}</div>
+        <div className={`text-sm text-slate-900 dark:text-slate-100 ${valueClass}`}>{value}</div>
+      </div>
+    </div>
   )
 }

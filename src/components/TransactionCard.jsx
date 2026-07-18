@@ -7,13 +7,24 @@ export const TransactionCard = React.memo(function TransactionCard({ tx, account
   const isRevenue = tx.type === 'revenue'
   const amountColor = isRevenue ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
 
+  let primaryText = account?.name || 'نامشخص'
+  if (!isRevenue) {
+    if (tx.categoryType === 'payment') {
+      primaryText = tx.customerName || 'پرداختی'
+    } else if (tx.categoryType === 'bills') {
+      primaryText = tx.bill || 'قبض'
+    } else {
+      primaryText = tx.category || 'سایر'
+    }
+  }
+
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-card dark:shadow-card-dark p-4 card-press border border-slate-100 dark:border-slate-700/50">
       <div className="flex items-center gap-3">
         <BankLogo bankId={account?.bankId} name={account?.name} size={44} isDark={isDark} />
         <div className="flex-1 min-w-0">
           <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100 leading-snug">
-            {account?.name || 'نامشخص'}
+            {primaryText}
           </span>
           <span className="block text-xs text-slate-400 dark:text-slate-500 mt-0.5">
             {formatJalaliDate(tx.dateJalali)}
