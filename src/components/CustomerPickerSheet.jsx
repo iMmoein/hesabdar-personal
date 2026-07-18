@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { FullScreenSheet } from './FullScreenSheet'
 import { db } from '../db/database'
 import { Plus, Check, Search } from 'lucide-react'
+import { toPersianDigits } from '../utils/jalali'
 
 export function CustomerPickerSheet({ selectedCustomerId, onSelect, onClose }) {
   const [customers, setCustomers] = useState([])
@@ -12,8 +13,23 @@ export function CustomerPickerSheet({ selectedCustomerId, onSelect, onClose }) {
 
   const loadCustomers = useCallback(async () => {
     try {
-      const list = await db.customers.orderBy('transactionCount').reverse().toArray()
-      setCustomers(list)
+      const list = await db.customers.toArray()
+      const withCounts = await Promise.all(
+        list.map(async (c) => {
+          const count = await db.transactions
+            .where('customerId')
+            .equals(c.id)
+            .filter((t) => t.type === 'expense' && t.categoryType === 'payment')
+            .count()
+          return { ...c, transactionCount: count }
+        })
+      )
+      withCounts.sort((a, b) => {
+        const countDiff = (b.transactionCount || 0) - (a.transactionCount || 0)
+        if (countDiff !== 0) return countDiff
+        return (a.name || '').localeCompare(b.name || '', 'fa')
+      })
+      setCustomers(withCounts)
     } catch (e) {
       console.error('Failed to load customers:', e)
     }
@@ -101,7 +117,7 @@ export function CustomerPickerSheet({ selectedCustomerId, onSelect, onClose }) {
               >
                 <span className="text-sm text-slate-900 dark:text-slate-100 font-medium">{c.name}</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400 tabular-nums">{c.transactionCount || 0}</span>
+                  <span className="text-xs text-slate-400 tabular-nums">{toPersianDigits(c.transactionCount || 0)}</span>
                   {selectedCustomerId === c.id && <Check className="w-5 h-5 text-brand-600" />}
                 </div>
               </button>

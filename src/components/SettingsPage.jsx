@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 import { ConfirmDialog, Toast } from './FullScreenSheet'
-import { db, getBackupData, validateBackup, restoreBackup, getStats, getSetting, setSetting } from '../db/database'
+import { db, getBackupData, validateBackup, restoreBackup, getSetting, setSetting } from '../db/database'
 import { formatAmount, toPersianDigits, getTodayJalali, jalaliToString } from '../utils/jalali'
 import { Settings as SettingsIcon, Database, BarChart3, Download, Upload, Sun, Moon, Coins, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 export function SettingsPage({ currency, setCurrency, isDark, setIsDark, onDataChanged }) {
   const [stats, setStats] = useState({ totalRevenue: 0, totalExpense: 0, netProfit: 0 })
+  const [statsLoading, setStatsLoading] = useState(true)
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false)
   const [pendingRestoreData, setPendingRestoreData] = useState(null)
   const [toast, setToast] = useState(null)
@@ -14,16 +15,23 @@ export function SettingsPage({ currency, setCurrency, isDark, setIsDark, onDataC
 
   const loadStats = useCallback(async () => {
     try {
-      const s = await getStats()
-      setStats(s)
+      setStatsLoading(true)
+      const revenues = await db.transactions.where('type').equals('revenue').toArray()
+      const expenses = await db.transactions.where('type').equals('expense').toArray()
+      const totalRevenue = revenues.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+      const totalExpense = expenses.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+      const net = totalRevenue - totalExpense
+      setStats({ totalRevenue, totalExpense, netProfit: net })
     } catch (e) {
       console.error('Failed to load stats:', e)
+    } finally {
+      setStatsLoading(false)
     }
   }, [])
 
   useEffect(() => {
     loadStats()
-  }, [loadStats])
+  }, [loadStats, currency])
 
   const showToast = useCallback((msg, type = 'success') => {
     setToast({ msg, type })
@@ -238,7 +246,7 @@ export function SettingsPage({ currency, setCurrency, isDark, setIsDark, onDataC
                   <div>
                     <div className="text-white/80 text-xs mb-1">آمار درآمد</div>
                     <div className="text-lg font-bold text-white tabular-nums">
-                      {formatAmount(stats.totalRevenue, currency)}
+                      {statsLoading ? '…' : formatAmount(stats.totalRevenue, currency)}
                     </div>
                   </div>
                   <TrendingUp className="w-8 h-8 text-white/30" />
@@ -250,7 +258,7 @@ export function SettingsPage({ currency, setCurrency, isDark, setIsDark, onDataC
                   <div>
                     <div className="text-white/80 text-xs mb-1">آمار هزینه</div>
                     <div className="text-lg font-bold text-white tabular-nums">
-                      {formatAmount(stats.totalExpense, currency)}
+                      {statsLoading ? '…' : formatAmount(stats.totalExpense, currency)}
                     </div>
                   </div>
                   <TrendingDown className="w-8 h-8 text-white/30" />
@@ -263,7 +271,7 @@ export function SettingsPage({ currency, setCurrency, isDark, setIsDark, onDataC
                     <div>
                       <div className="text-white/80 text-xs mb-1">خالص سود و زیان</div>
                       <div className="text-lg font-bold text-white tabular-nums">
-                        سود: {formatAmount(stats.netProfit, currency)}
+                        سود: {statsLoading ? '…' : formatAmount(stats.netProfit, currency)}
                       </div>
                     </div>
                     <TrendingUp className="w-8 h-8 text-white/30" />
@@ -277,7 +285,7 @@ export function SettingsPage({ currency, setCurrency, isDark, setIsDark, onDataC
                     <div>
                       <div className="text-white/80 text-xs mb-1">خالص سود و زیان</div>
                       <div className="text-lg font-bold text-white tabular-nums">
-                        زیان: {formatAmount(Math.abs(stats.netProfit), currency)}
+                        زیان: {statsLoading ? '…' : formatAmount(Math.abs(stats.netProfit), currency)}
                       </div>
                     </div>
                     <TrendingDown className="w-8 h-8 text-white/30" />
@@ -291,7 +299,7 @@ export function SettingsPage({ currency, setCurrency, isDark, setIsDark, onDataC
                     <div>
                       <div className="text-white/80 text-xs mb-1">خالص سود و زیان</div>
                       <div className="text-lg font-bold text-white tabular-nums">
-                        سر به سر: {formatAmount(0, currency)}
+                        سر به سر: {statsLoading ? '…' : toPersianDigits(0)}
                       </div>
                     </div>
                     <Minus className="w-8 h-8 text-white/30" />
