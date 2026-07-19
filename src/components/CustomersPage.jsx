@@ -411,13 +411,19 @@ function CustomerDetail({ customer, currency, isDark, onClose }) {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gradient-to-br from-brand-500 to-brand-600 rounded-2xl p-4 shadow-md">
             <div className="text-white/80 text-xs mb-1">تعداد تراکنش‌ها</div>
-            <div className="text-xl font-bold text-white tabular-nums">
+            <div className="text-xl font-bold text-white tabular-nums whitespace-nowrap">
               {toPersianDigits(transactions.length)}
             </div>
           </div>
           <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-4 shadow-md">
             <div className="text-white/80 text-xs mb-1">مجموع هزینه‌ها</div>
-            <div className="text-xl font-bold text-white tabular-nums">
+            <div
+              className="font-bold text-white tabular-nums whitespace-nowrap overflow-visible"
+              style={{
+                fontSize: totalExpense > 1000000000 ? '1.125rem' : totalExpense > 100000000 ? '1.25rem' : '1.5rem',
+                lineHeight: '1.2',
+              }}
+            >
               {formatAmount(totalExpense, currency)}
             </div>
           </div>

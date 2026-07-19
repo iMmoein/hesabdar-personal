@@ -3,12 +3,17 @@ import { FullScreenSheet } from './FullScreenSheet'
 import { BankSelectorSheet } from './BankSelectorSheet'
 import { BankLogo } from './BankLogo'
 import { db } from '../db/database'
-import { Plus, Check, Wallet } from 'lucide-react'
+import ConfirmDialog from './ConfirmDialog'
+import { toPersianDigits } from '../utils/jalali'
+import { Plus, Check, Wallet, Trash2 } from 'lucide-react'
 
 export function AccountPickerSheet({ selectedAccountId, onSelect, onClose, isDark }) {
   const [accounts, setAccounts] = useState([])
   const [showBankSelector, setShowBankSelector] = useState(false)
   const [error, setError] = useState('')
+  const [toast, setToast] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleteUsageCount, setDeleteUsageCount] = useState(0)
 
   const loadAccounts = useCallback(async () => {
     try {
@@ -23,6 +28,32 @@ export function AccountPickerSheet({ selectedAccountId, onSelect, onClose, isDar
   useEffect(() => {
     loadAccounts()
   }, [loadAccounts])
+
+  const handleDeleteAccount = async (account) => {
+    try {
+      const usageCount = await db.transactions.where('accountId').equals(account.id).count()
+      setDeleteUsageCount(usageCount)
+      setDeleteTarget(account)
+    } catch (e) {
+      console.error('Failed to check account usage:', e)
+    }
+  }
+
+  const confirmDeleteAccount = async () => {
+    if (!deleteTarget) return
+    try {
+      await db.accounts.delete(deleteTarget.id)
+      await loadAccounts()
+      setToast('حساب با موفقیت حذف شد')
+      setTimeout(() => setToast(null), 2500)
+    } catch (e) {
+      console.error('Failed to delete account:', e)
+      setError('حذف حساب ناموفق بود')
+    } finally {
+      setDeleteTarget(null)
+      setDeleteUsageCount(0)
+    }
+  }
 
   const handleBankSelect = async (bank) => {
     try {
@@ -84,21 +115,32 @@ export function AccountPickerSheet({ selectedAccountId, onSelect, onClose, isDar
           ) : (
             <>
               {accounts.map((acc) => (
-                <button
+                <div
                   key={acc.id}
-                  onClick={() => onSelect(acc)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all btn-press ${
+                  className={`w-full flex items-center gap-3 p-3 rounded-2xl border transition-all ${
                     selectedAccountId === acc.id
                       ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
                       : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-card dark:hover:bg-slate-700'
                   }`}
                 >
-                  <BankLogo bankId={acc.bankId} name={acc.name} size={44} isDark={isDark} />
-                  <span className="flex-1 text-sm text-slate-900 dark:text-slate-100 font-medium">{acc.name}</span>
-                  {selectedAccountId === acc.id && (
-                    <Check className="w-5 h-5 text-brand-600" />
-                  )}
-                </button>
+                  <button
+                    onClick={() => onSelect(acc)}
+                    className="flex-1 flex items-center gap-3 text-right"
+                  >
+                    <BankLogo bankId={acc.bankId} name={acc.name} size={44} isDark={isDark} />
+                    <span className="flex-1 text-sm text-slate-900 dark:text-slate-100 font-medium">{acc.name}</span>
+                    {selectedAccountId === acc.id && (
+                      <Check className="w-5 h-5 text-brand-600" />
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteAccount(acc) }}
+                    className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 transition-colors shrink-0"
+                    aria-label="حذف حساب"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               ))}
               <button
                 onClick={() => setShowBankSelector(true)}
@@ -114,6 +156,25 @@ export function AccountPickerSheet({ selectedAccountId, onSelect, onClose, isDar
       {showBankSelector && (
         <BankSelectorSheet onSelect={handleBankSelect} onClose={() => setShowBankSelector(false)} />
       )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] px-5 py-3 rounded-2xl bg-slate-800 dark:bg-slate-700 text-white text-sm shadow-lg animate-fadeIn">
+          {toast}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="حذف حساب"
+        message={deleteUsageCount > 0
+          ? `این حساب دارای ${toPersianDigits(deleteUsageCount)} تراکنش است. با حذف حساب، تراکنش‌ها باقی می‌مانند ولی بدون حساب نمایش داده می‌شوند. آیا مطمئنید؟`
+          : 'آیا از حذف این حساب اطمینان دارید؟'}
+        confirmText="حذف"
+        cancelText="انصراف"
+        danger
+        onConfirm={confirmDeleteAccount}
+        onCancel={() => { setDeleteTarget(null); setDeleteUsageCount(0) }}
+      />
     </>
   )
 }
